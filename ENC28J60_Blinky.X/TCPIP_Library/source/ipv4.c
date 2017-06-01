@@ -37,37 +37,24 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 
 */
 
-#include <xc.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stddef.h>
 #include "network.h"
 #include "ipv4.h"
+#include "icmp.h"
 #include "arpv4.h"
 #include "udpv4.h"
 #include "udpv4_port_handler_table.h"
 #include "tcpv4.h"
 #include "tcpip_types.h"
 #include "ethernet_driver.h"
-#include "syslog.h"
-#include "icmp.h"
+#include "ip_database.h"
 
-
-uint32_t ipv4Address;
 uint32_t remoteIpv4Address;
-uint32_t ipv4DNS[2]; // allow a primary & secondary DNS
-uint32_t ipv4SubnetMask;
-uint32_t ipv4Router;
-
+uint16_t ipv4StartPosition;
 ipv4Header_t ipv4Header;
-
-#ifdef ENABLE_IP_DEBUG
-#define IPV4_SyslogWrite(x)  SYSLOG_Write(x)
-#define IPV4_Sprintf(a, b, c) sprintf(a, b, c);
-#else
-#define IPV4_SyslogWrite(x)
-#define IPV4_Sprintf(a, b, c)
-#endif
+static void IPV4_SaveStartPosition(void);
 
 
 /*
@@ -77,7 +64,7 @@ extern void TCP_Recv(uint32_t, uint16_t);
 
 void IPV4_Init(void)
 {
-    ipv4Address = 0;
+    ipdb_init();
 }
 
 uint16_t IPV4_PseudoHeaderChecksum(uint16_t payloadLen)
@@ -123,10 +110,10 @@ error_msg IPV4_Packet(void)
     cksm = ETH_RxComputeChecksum(sizeof(ipv4Header_t), 0);
     if (cksm != 0)
     {
-        IPV4_SyslogWrite("IP Header wrong cksm");
         return IPV4_CHECKSUM_FAILS;
     }
-
+    
+    IPV4_SaveStartPosition();
     ETH_ReadBlock((char *)&ipv4Header, sizeof(ipv4Header_t));
     if(ipv4Header.version != 4)
     {
@@ -136,24 +123,40 @@ error_msg IPV4_Packet(void)
     ipv4Header.dstIpAddress = ntohl(ipv4Header.dstIpAddress);
     ipv4Header.srcIpAddress = ntohl(ipv4Header.srcIpAddress);
 
-    if((ipv4Header.dstIpAddress == ipv4Address) ||( ipv4Header.dstIpAddress == IPV4_BROADCAST))
+    if(ipv4Header.srcIpAddress == SPECIAL_IPV4_BROADCAST_ADDRESS)
+        return DEST_IP_NOT_MATCHED;
+
+
+    if(ipv4Header.dstIpAddress == ipdb_getAddress() || (ipv4Header.dstIpAddress == IPV4_ZERO_ADDRESS)||
+        ((ipv4Header.dstIpAddress == SPECIAL_IPV4_BROADCAST_ADDRESS)
+            ||((ipv4Header.dstIpAddress|CLASS_A_IPV4_BROADCAST_MASK == SPECIAL_IPV4_BROADCAST_ADDRESS && ((ipdb_getAddress()|CLASS_A_IPV4_REVERSE_BROADCAST_MASK)== ipv4Header.dstIpAddress)))
+                ||((ipv4Header.dstIpAddress|CLASS_B_IPV4_BROADCAST_MASK == SPECIAL_IPV4_BROADCAST_ADDRESS && ((ipdb_getAddress()|CLASS_B_IPV4_REVERSE_BROADCAST_MASK)== ipv4Header.dstIpAddress)))
+                    ||((ipv4Header.dstIpAddress|CLASS_C_IPV4_BROADCAST_MASK == SPECIAL_IPV4_BROADCAST_ADDRESS && ((ipdb_getAddress()|CLASS_C_IPV4_REVERSE_BROADCAST_MASK)== ipv4Header.dstIpAddress))))
+            || (ipv4Header.dstIpAddress == ALL_HOST_MULTICAST_ADDRESS))
     {
         ipv4Header.length = ntohs(ipv4Header.length);
 
         hdrLen = (uint8_t)(ipv4Header.ihl << 2);
 
+        if(ipv4Header.ihl < 5)
+            return INCORRECT_IPV4_HLEN;
+
         if (ipv4Header.ihl > 5)
         {
-            //Skip over the IPv4 Options field
+            //Do not process the IPv4 Options field
             ETH_Dump((uint16_t)(hdrLen - sizeof(ipv4Header_t)));
+            return IPV4_NO_OPTIONS;
         }
-
+        
         switch((ipProtocolNumbers)ipv4Header.protocol)
         {
-            case ICMP:
+            case ICMP_TCPIP:
                 {
                     // calculate and check the ICMP checksum
-                    IPV4_SyslogWrite("rx icmp");
+                    if((ipv4Header.dstIpAddress == IPV4_ZERO_ADDRESS))
+                    {
+                        return DEST_IP_NOT_MATCHED;
+                    }
                     length = ipv4Header.length - hdrLen;
                     cksm = ETH_RxComputeChecksum(length, 0);
 
@@ -163,36 +166,29 @@ error_msg IPV4_Packet(void)
                     }
                     else
                     {
-                        IPV4_Sprintf(msg, "icmp wrong cksm : %x",cksm);
-                        IPV4_SyslogWrite(msg);
                         return ICMP_CHECKSUM_FAILS;
                     }
                 }
                 break;
-            case UDP:
+            case UDP_TCPIP:
                 // check the UDP header checksum
-                IPV4_SyslogWrite("rx udp");
                 length = ipv4Header.length - hdrLen;
                 cksm = IPV4_PseudoHeaderChecksum(length);//Calculate pseudo header checksum
                 cksm = ETH_RxComputeChecksum(length, cksm); //1's complement of pseudo header checksum + 1's complement of UDP header, data
                 UDP_Receive(cksm);
                 break;
-            case TCP:
+            case TCP_TCPIP:
                 // accept only uni cast TCP packets
                 // check the TCP header checksum
-                IPV4_SyslogWrite("rx tcp");
                 length = ipv4Header.length - hdrLen;
                 cksm = IPV4_PseudoHeaderChecksum(length);
                 cksm = ETH_RxComputeChecksum(length, cksm);
 
                 // accept only packets with valid CRC Header
-                if (cksm == 0)
+                if (cksm == 0 && (ipv4Header.dstIpAddress != SPECIAL_IPV4_BROADCAST_ADDRESS) && (ipv4Header.dstIpAddress != IPV4_ZERO_ADDRESS))                
                 {
                     remoteIpv4Address = ipv4Header.srcIpAddress;
                     TCP_Recv(remoteIpv4Address, length);
-                }else
-                {
-                    IPV4_SyslogWrite("rx bad tcp cksm");
                 }
                 break;
             default:
@@ -203,9 +199,6 @@ error_msg IPV4_Packet(void)
     }
     else
     {
-        IPV4_Sprintf(msg, "ip address : %x",ipv4Header.dstIpAddress);
-        IPV4_SyslogWrite(msg);
-        IPV4_SyslogWrite("DEST IP NOT MATCHED");
         return DEST_IP_NOT_MATCHED;
     }
 }
@@ -218,20 +211,22 @@ error_msg IPv4_Start(uint32_t destAddress, ipProtocolNumbers protocol)
     uint32_t targetAddress;
 
     // Check if we have a valid IPadress and if it's different then 127.0.0.1
-    if(((ipv4Address != 0) || (protocol == UDP))
-     && (ipv4Address != 0x7F000001))
+    if(((ipdb_getAddress() != 0) || (protocol == UDP_TCPIP))
+     && (ipdb_getAddress() != 0x7F000001))
     {
-        if(destAddress != 0xFFFFFFFF)
+        if(((destAddress == SPECIAL_IPV4_BROADCAST_ADDRESS)
+             |((destAddress | CLASS_A_IPV4_BROADCAST_MASK) == SPECIAL_IPV4_BROADCAST_ADDRESS)
+                |((destAddress | CLASS_B_IPV4_BROADCAST_MASK )== SPECIAL_IPV4_BROADCAST_ADDRESS)
+                    |((destAddress | CLASS_C_IPV4_BROADCAST_MASK) == SPECIAL_IPV4_BROADCAST_ADDRESS))==0) // this is NOT a broadcast message
         {
-            if((ipv4SubnetMask & destAddress) == (ipv4SubnetMask & ipv4Address))//check for subnet
+            if( ((destAddress ^ ipdb_getAddress()) & ipdb_getSubNetMASK()) == 0)
             {
                 targetAddress = destAddress;
             }
             else
             {
-                targetAddress = ipv4Router;
+                targetAddress = ipdb_getRouter();
             }
-
             macAddress= ARPV4_Lookup(targetAddress);
             if(macAddress == 0)
             {
@@ -252,11 +247,11 @@ error_msg IPv4_Start(uint32_t destAddress, ipProtocolNumbers protocol)
             ETH_Write8(IPv4_TTL); // TTL
             ETH_Write8(protocol); // protocol
             ETH_Write16(0); // checksum. set to zero and overwrite with correct value
-            ETH_Write32(ipv4Address);
+            ETH_Write32(ipdb_getAddress());
             ETH_Write32(destAddress);
 
             // fill the pseudo header for checksum calculation
-            ipv4Header.srcIpAddress = ipv4Address;
+            ipv4Header.srcIpAddress = ipdb_getAddress();
             ipv4Header.dstIpAddress = destAddress;
             ipv4Header.protocol = protocol;
         }
@@ -284,8 +279,19 @@ error_msg IPV4_Send(uint16_t payloadLength)
     return ret;
 }
 
-
-uint32_t IPV4_GetMyIP(void)
+static void IPV4_SaveStartPosition(void)
 {
-    return(ipv4Address);
+    ipv4StartPosition = ETH_GetReadPtr();
 }
+
+uint16_t IPV4_GetStartPosition(void)
+{    
+    return ipv4StartPosition;
+}
+
+
+uint16_t IPV4_GetDatagramLength(void)
+{
+    return ((ipv4Header.length) - sizeof(ipv4Header_t));
+}
+

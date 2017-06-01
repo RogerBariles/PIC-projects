@@ -46,8 +46,8 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #include "network.h"
 #include "ethernet_driver.h"
 #include "tcpip_types.h"
-#include "syslog.h"
 #include "tcpip_config.h"
+#include "icmp.h"
 
 tcpTCB_t *tcbList;
 socklistsize_t tcbListSize;
@@ -59,13 +59,7 @@ static uint32_t nextSequenceNumber;
 
 static uint32_t receivedRemoteAddress;
 static uint16_t rcvPayloadLen;
-static uint16_t tcpMss;
-
-#ifdef ENABLE_TCP_DEBUG
-#define TCP_SyslogWrite(x)  SYSLOG_Write(x)
-#else
-#define TCP_SyslogWrite(x)
-#endif
+static uint16_t tcpMss = 536;
 
 static bool TCP_FiniteStateMachine(void);
 
@@ -147,7 +141,9 @@ static void TCB_Reset(tcpTCB_t *tcbPtr)
     tcbPtr->flags = 0;
     
     tcbPtr->localPort = 0;
-    tcbPtr->socketState = SOCKET_CLOSED;
+    tcbPtr->bytesSent = 0;
+    tcbPtr->payloadSave = false;
+    tcbPtr->socketState = SOCKET_CLOSING;
 }
 
 /** Check is a pointer to a socket/TCB. If the pointer is in the TCB list
@@ -223,12 +219,20 @@ static bool TCP_Snd(tcpTCB_t *tcbPtr)
     if ((tcbPtr->flags) & (TCP_SYN_FLAG | TCP_RST_FLAG))
     {
         tcpDataLength = 0; // SYN and RST packets doesn't have any payload
-    } else
+    } 
+    else if(tcbPtr->payloadSave == true)
     {
-        tcpDataLength = tcbPtr->bytesToSend;
+        tcpDataLength = 0;
+    }else
+    {
+        tcpDataLength = tcbPtr->bytesSent;
 
         if (tcpDataLength != 0)
         {
+            if(tcbPtr->remoteWnd == 0)
+            {
+                tcbPtr->remoteWnd = 1;
+            }
             if(tcpDataLength > tcbPtr->remoteWnd)
             {
                 tcpDataLength = tcbPtr->remoteWnd;
@@ -242,11 +246,11 @@ static bool TCP_Snd(tcpTCB_t *tcbPtr)
 
             // update the pointer to the next byte that needs to be sent
             tcbPtr->txBufferPtr = tcbPtr->txBufferPtr + tcpDataLength;
-            tcbPtr->bytesToSend = tcbPtr->bytesToSend - tcpDataLength;
+            tcbPtr->bytesToSend = tcbPtr->bytesSent - tcpDataLength;
 
             if (tcbPtr->bytesToSend == 0)
             {
-                tcbPtr->flags |= TCP_PSH_FLAG;
+                tcbPtr->flags = tcbPtr->flags | TCP_PSH_FLAG;
             }
         }
     }
@@ -254,8 +258,8 @@ static bool TCP_Snd(tcpTCB_t *tcbPtr)
     txHeader.flags = tcbPtr->flags;
     payloadLength = sizeof(tcpHeader_t) + tcpDataLength;
 
-    ret = IPv4_Start(tcbPtr->destIP, TCP);
-    if (ret)
+    ret = IPv4_Start(tcbPtr->destIP, TCP_TCPIP);
+    if (ret == SUCCESS)
     {
         ETH_WriteBlock((uint8_t *) &txHeader, sizeof(tcpHeader_t));
 
@@ -264,17 +268,18 @@ static bool TCP_Snd(tcpTCB_t *tcbPtr)
             ETH_WriteBlock( data, tcpDataLength);
         }
 
-        cksm = payloadLength + TCP;
+        cksm = payloadLength + TCP_TCPIP;
         // Calculate the TCP checksum
         cksm = ETH_TxComputeChecksum(sizeof(ethernetFrame_t) + sizeof(ipv4Header_t) - 8, payloadLength + 8, cksm);
         ETH_Insert((char *)&cksm, 2, sizeof(ethernetFrame_t) + sizeof(ipv4Header_t) + offsetof(tcpHeader_t,checksum));
 
-        ret = IPV4_Send(payloadLength);
+        ret = IPV4_Send(payloadLength);        
+//        tcbPtr->txBufferPtr = tcbPtr->txBufferPtr - tcpDataLength;
     }
 
     // The packet wasn't transmitted
     // Use the timeout to retry again later
-    if (ret == false)
+    if (ret != SUCCESS)
     {
         // make sure we keep the remaining timeouts and skip this send  that failed
         // try at least once
@@ -289,7 +294,6 @@ static bool TCP_Snd(tcpTCB_t *tcbPtr)
     {
         //if the packet was sent increment the Seqno.
         tcbPtr->localSeqno = tcbPtr->localSeqno + tcpDataLength;
-        TCP_SyslogWrite("tcp_packet sent");
     }
 
     return ret;
@@ -333,7 +337,9 @@ bool TCP_PayloadSave(uint16_t len)
 
         //prepare to send the ACK and maybe some data if there are any
         currentTCB->flags = TCP_ACK_FLAG;
+        currentTCB->payloadSave = true;
         TCP_Snd(currentTCB);
+        currentTCB->payloadSave = false;
         ret = true;
     }
     return ret;
@@ -411,9 +417,9 @@ static bool TCP_ParseTCPOptions(void)
                             }else
                             {
                                 // Bad option size length
-                                TCP_SyslogWrite("tcp_parseopt: bad option size length");
                                 // unexpected error
                                 tcpOptionsSize = 0;
+                                ret = false;
                             }
                         }else
                         {
@@ -423,7 +429,6 @@ static bool TCP_ParseTCPOptions(void)
                         }
                         break;
                     default:
-                        TCP_SyslogWrite("tcp_parseopt: other");
                         opt = ETH_Read8();
                         tcpOptionsSize--;
 
@@ -439,14 +444,12 @@ static bool TCP_ParseTCPOptions(void)
                                 ret = true;
                             }else
                             {
-                                TCP_SyslogWrite("tcp_parseopt: bad option length");
                                 // the options are malformed and we don't process them further.
                                 tcpOptionsSize = 0;
                                 ret = false;
                             }
                         }else
                         {
-                            TCP_SyslogWrite("tcp_parseopt: bad length");
                             // If the length field is zero, the options are malformed
                             // and we don't process them further.
                             tcpOptionsSize = 0;
@@ -535,43 +538,35 @@ void TCP_Recv(uint32_t remoteAddress, uint16_t length)
                     {
                         if(tcpHeader.ack)
                         {
-                            TCP_SyslogWrite("found syn&ack");
                             currentTCB->connectionEvent = RCV_SYNACK;
                         } else
                         {
-                            TCP_SyslogWrite("found syn");
                             currentTCB->connectionEvent = RCV_SYN;
                         }
                     } else if(tcpHeader.fin)
                     {
                         if(tcpHeader.ack)
                         {
-                            TCP_SyslogWrite("found fin&ack");
                             currentTCB->connectionEvent = RCV_FINACK;
                         } else
                         {
-                            TCP_SyslogWrite("found fin");
                             currentTCB->connectionEvent = RCV_FIN;
                         }
                     } else if(tcpHeader.rst)
                     {
                         if(tcpHeader.ack)
                         {
-                            TCP_SyslogWrite("found rst&ack");
                             currentTCB->connectionEvent = RCV_RSTACK;
                         } else
                         {
-                            TCP_SyslogWrite("found rst");
                             currentTCB->connectionEvent = RCV_RST;
                         }
                     } else if(tcpHeader.ack)
                     {
-                        TCP_SyslogWrite("found ack");
                         currentTCB->connectionEvent = RCV_ACK;
                     }
                     else
                     {
-                        TCP_SyslogWrite("confused");
                     }
                     // convert it here to save some cycles later
                     tcpHeader.ackNumber = ntohl(tcpHeader.ackNumber);
@@ -580,7 +575,6 @@ void TCP_Recv(uint32_t remoteAddress, uint16_t length)
                     TCP_FiniteStateMachine();
                 }else
                 {
-                    TCP_SyslogWrite("pkt dropped: bad options");
                 }
             } // we will not send a reset message for PORT not open
         }
@@ -606,14 +600,17 @@ static bool TCP_FiniteStateMachine(void)
 
     tcp_fsm_states_t nextState = currentTCB->fsmState; // default don't change states
     tcpEvent_t event = currentTCB->connectionEvent;
-
+    if(isPortUnreachable(currentTCB->localPort))
+    {
+        event = RCV_RST;
+        resetPortUnreachable();
+    }
     switch (currentTCB->fsmState)
     {
         case LISTEN:
             switch (event)
             {
                 case RCV_SYN:
-                    TCP_SyslogWrite("LISTEN: rx_syn");
                     // Start the connection on the TCB
 
                     currentTCB->destIP = receivedRemoteAddress;
@@ -639,7 +636,6 @@ static bool TCP_FiniteStateMachine(void)
                     nextState = SYN_RECEIVED;
                     break;
                 case CLOSE:
-                    TCP_SyslogWrite("LISTEN: close");
                     nextState = CLOSE;
                     TCB_Reset(currentTCB);
                     break;
@@ -652,7 +648,6 @@ static bool TCP_FiniteStateMachine(void)
             switch (event)
             {
                 case RCV_SYN:
-                    TCP_SyslogWrite("SYN_SENT: rx_syn");
                     // Simultaneous open
                     currentTCB->remoteSeqno =  tcpHeader.sequenceNumber;
                     currentTCB->remoteAck = tcpHeader.sequenceNumber + 1; //ask for next packet
@@ -673,7 +668,6 @@ static bool TCP_FiniteStateMachine(void)
                     nextState = SYN_RECEIVED;
                     break;
                 case RCV_SYNACK:
-                    TCP_SyslogWrite("SYN_SENT: rx_synack");
 
                     currentTCB->timeout = 0;
 
@@ -710,7 +704,6 @@ static bool TCP_FiniteStateMachine(void)
                     }
                     break;
                 case RCV_ACK:
-                    TCP_SyslogWrite("SYN_SENT: rx_ack");
 
                     currentTCB->timeout = 0;
 
@@ -743,13 +736,11 @@ static bool TCP_FiniteStateMachine(void)
                     }
                     break;
                 case CLOSE:
-                    TCP_SyslogWrite("SYN_SENT: close");
                     //go to CLOSED state
                     nextState = CLOSED;
                     TCB_Reset(currentTCB);
                     break;
                 case TIMEOUT:
-                    TCP_SyslogWrite("SYN_SENT: timeout");
                     // looks like the the packet was lost
                     // check inside the packet to see where to jump next
                     if (currentTCB->timeoutsCount)
@@ -793,7 +784,6 @@ static bool TCP_FiniteStateMachine(void)
             switch (event)
             {
                 case RCV_SYNACK:
-                    TCP_SyslogWrite("SYN_RECEIVED: rx_synack");
                     if (currentTCB->localPort == tcpHeader.destPort)
                     {
                         // stop the current timeout
@@ -809,7 +799,6 @@ static bool TCP_FiniteStateMachine(void)
                     }
                     break;
                 case RCV_ACK:
-                    TCP_SyslogWrite("SYN_RECEIVED: rx_ack");
 
                     // check if the packet is for the curent TCB
                     // we need to check the remote IP adress and remote port
@@ -833,7 +822,6 @@ static bool TCP_FiniteStateMachine(void)
                     }
                     break;
                 case CLOSE:
-                    TCP_SyslogWrite("SYN_RECEIVED: close");
                     // stop the current timeout
                     currentTCB->timeout = 0;
                     // Need to send FIN and go to the FIN_WAIT_1
@@ -848,13 +836,11 @@ static bool TCP_FiniteStateMachine(void)
                 case RCV_RSTACK:
                 case RCV_RST:
                     // Reset the connection
-                    TCP_SyslogWrite("SYN_RECEIVED:  rx_rst");
                     //check if the local port match; else drop the pachet
                     if (currentTCB->localPort == tcpHeader.destPort)
                     {
                         if (currentTCB->remoteAck ==  tcpHeader.sequenceNumber)
                         {
-                            TCP_SyslogWrite("rst seq OK");
                             currentTCB->destIP = 0;
                             currentTCB->destPort = 0;
                             currentTCB->localSeqno = 0;
@@ -862,14 +848,14 @@ static bool TCP_FiniteStateMachine(void)
                             currentTCB->remoteSeqno = 0;
                             currentTCB->remoteAck = 0;
                             currentTCB->remoteWnd = 0;
-                            currentTCB->mss = 0;
+                            //TCP_MAX_SEG_SIZE instead of 0
+                            currentTCB->mss = TCP_MAX_SEG_SIZE;
                             
                             nextState = LISTEN;
                         }
                     }
                     break;
                 case TIMEOUT:
-                    TCP_SyslogWrite("SYN_RECEIVED:  timeout");
                     if (currentTCB->timeoutsCount)
                     {
                         TCP_Snd(currentTCB);
@@ -887,7 +873,8 @@ static bool TCP_FiniteStateMachine(void)
                             currentTCB->remoteSeqno = 0;
                             currentTCB->remoteAck = 0;
                             currentTCB->remoteWnd = 0;
-                            currentTCB->mss = 0;
+                            //TCP_MAX_SEG_SIZE instead of 0
+                            currentTCB->mss = TCP_MAX_SEG_SIZE;
                             nextState = LISTEN;
                         }
                     }
@@ -901,7 +888,6 @@ static bool TCP_FiniteStateMachine(void)
             switch (event)
             {
                 case RCV_ACK:
-                    TCP_SyslogWrite("ESTABLISHED: rx_ack");
                     if (currentTCB->destIP == receivedRemoteAddress)
                     {
                         // is sequence number OK?
@@ -923,17 +909,25 @@ static bool TCP_FiniteStateMachine(void)
                                     currentTCB->txBufferPtr = currentTCB->txBufferPtr - notAckBytes;
                                     currentTCB->bytesToSend = currentTCB->bytesToSend  + notAckBytes;
                                     
+                                    currentTCB->localLastAck = tcpHeader.ackNumber - 1;
+                                    currentTCB->localSeqno = tcpHeader.ackNumber;
+                                    
                                     // Check if all TX buffer/data was acknowledged
                                     if(currentTCB->bytesToSend == 0) 
                                     {
                                         if (currentTCB->txBufState == TX_BUFF_IN_USE)
                                         {
                                             currentTCB->txBufState = NO_BUFF;
+                                            //stop timeout
+                                            currentTCB->timeout = 0;
                                         }
                                     }                                    
+                                    else
+                                    {                                        
+                                        currentTCB->bytesSent = currentTCB->bytesToSend;
+                                        TCP_Snd(currentTCB);
+                                    }
 
-                                    currentTCB->localLastAck = tcpHeader.ackNumber - 1;
-                                    currentTCB->localSeqno = tcpHeader.ackNumber;
                                     
                                     // check if the packet has payload
                                     if(rcvPayloadLen > 0)
@@ -947,28 +941,20 @@ static bool TCP_FiniteStateMachine(void)
                                 {
                                     // this is a wrong Ack
                                     // ACK a packet that wasn't transmitted
-                                    // send a reset
-                                    currentTCB->flags =   TCP_RST_FLAG | TCP_ACK_FLAG;
-                                    if (TCP_Snd(currentTCB))
-                                    {
-                                        nextState = CLOSED;
-                                        TCB_Reset(currentTCB);
-                                    }
                                 }
                             }
                         }
                     }
                     break;
                 case CLOSE:
-                    TCP_SyslogWrite("ESTABLISHED: close");
                     currentTCB->flags = TCP_FIN_FLAG;
                     nextState = FIN_WAIT_1;
                     TCP_Snd(currentTCB);
                     break;
-                case RCV_FINACK:
-                    TCP_SyslogWrite("ESTABLISHED: rx_finack");
                 case RCV_FIN:
-                    TCP_SyslogWrite("ESTABLISHED: rx_fin");
+                    break;
+                case RCV_FINACK:
+                    currentTCB->bytesSent = 0;                   
                     // ACK the current packet
                     // TO DO  check if it's a valid packet
                     currentTCB->localSeqno = tcpHeader.ackNumber;
@@ -985,12 +971,13 @@ static bool TCP_FiniteStateMachine(void)
                     TCP_Snd(currentTCB);
                     break;
                 case RCV_RST:
-                case RCV_RSTACK:
+                case RCV_RSTACK:                     
+                    currentTCB->flags = TCP_RST_FLAG;
+                    TCP_Snd(currentTCB);
                     nextState = CLOSED;
                     TCB_Reset(currentTCB);
                     break;
                 case TIMEOUT:
-                    TCP_SyslogWrite("ESTABLISHED:  timeout");
                     if (currentTCB->timeoutsCount)
                     {
                         TCP_Snd(currentTCB);
@@ -1013,7 +1000,6 @@ static bool TCP_FiniteStateMachine(void)
             switch (event)
             {
                 case RCV_FIN:
-                    TCP_SyslogWrite("FIN_WAIT_1: rx_fin");
                     currentTCB->flags =  TCP_ACK_FLAG;
                     if(TCP_Snd(currentTCB))
                     {
@@ -1021,14 +1007,12 @@ static bool TCP_FiniteStateMachine(void)
                     }
                     break;
                 case RCV_ACK:
-                    TCP_SyslogWrite("FIN_WAIT_1: rx_ack");
                     // stop the current timeout
                     currentTCB->timeout = TCP_START_TIMEOUT_VAL;
                     currentTCB->timeoutsCount = 1;
                     nextState = FIN_WAIT_2;
                     break;
                 case RCV_FINACK:
-                    TCP_SyslogWrite("FIN_WAIT_1: rx_finack");
                     currentTCB->flags =  TCP_ACK_FLAG;
                     if(TCP_Snd(currentTCB))
                     {
@@ -1036,7 +1020,6 @@ static bool TCP_FiniteStateMachine(void)
                     }
                     break;
                 case TIMEOUT:
-                    TCP_SyslogWrite("FIN_WAIT_1:  timeout");
                     if (currentTCB->timeoutsCount)
                     {
                         TCP_Snd(currentTCB);
@@ -1059,14 +1042,12 @@ static bool TCP_FiniteStateMachine(void)
             switch (event)
             {
                 case RCV_FIN:
-                    TCP_SyslogWrite("FIN_WAIT_2: rx_fin");
                     if(TCP_Snd(currentTCB))
                     {
                         nextState = TIME_WAIT;
                     }
                     break;
                 case TIMEOUT:
-                    TCP_SyslogWrite("FIN_WAIT_2:  timeout");
                     if (currentTCB->timeoutsCount)
                     {
                         TCP_Snd(currentTCB);
@@ -1092,7 +1073,6 @@ static bool TCP_FiniteStateMachine(void)
             switch (event)
             {
                 case RCV_ACK:
-                    TCP_SyslogWrite("CLOSING: rx_ack");
                     nextState = TIME_WAIT;
                     break;
                 default:
@@ -1108,7 +1088,6 @@ static bool TCP_FiniteStateMachine(void)
                     if ((currentTCB->destIP == receivedRemoteAddress) &&
                         (currentTCB->destPort == tcpHeader.sourcePort))
                     {
-                        TCP_SyslogWrite("LAST_ACK: rx_ack");
                         nextState = CLOSED;
                         TCB_Reset(currentTCB);
                     }
@@ -1132,7 +1111,6 @@ static bool TCP_FiniteStateMachine(void)
             }
             break;
         case TIME_WAIT:
-            TCP_SyslogWrite("Time Wait");
             nextState = CLOSED;
             TCB_Reset(currentTCB);
             break;
@@ -1140,7 +1118,6 @@ static bool TCP_FiniteStateMachine(void)
             switch (event)
             {
                 case ACTIVE_OPEN:
-                    TCP_SyslogWrite("CLOSED: active_open");
                     // create and send a SYN packet
                     currentTCB->timeout = TCP_START_TIMEOUT_VAL;
                     currentTCB->timeoutReloadValue = TCP_START_TIMEOUT_VAL;
@@ -1151,7 +1128,6 @@ static bool TCP_FiniteStateMachine(void)
                     ret = true;
                     break;
                 case PASIVE_OPEN:
-                    TCP_SyslogWrite("CLOSED: passive_open");
                     currentTCB->destIP = 0;
                     currentTCB->destPort = 0;
                     nextState = LISTEN;
@@ -1196,8 +1172,11 @@ tcbError_t TCP_SocketInit(tcpTCB_t *tcbPtr)
         tcbPtr->txBufferStart = NULL;
         tcbPtr->txBufferPtr = NULL;
         tcbPtr->bytesToSend = 0;
+        tcbPtr->bytesSent = 0;
+        tcbPtr->payloadSave = false;
         tcbPtr->txBufState = NO_BUFF;
-
+        tcbPtr->socketState = SOCKET_CLOSED;
+        
         TCB_Insert(tcbPtr);
         ret = TCB_NO_ERROR;
     }
@@ -1209,7 +1188,7 @@ tcbError_t TCP_SocketRemove(tcpTCB_t *tcbPtr)
     tcbError_t ret = TCB_ERROR;
     
     // verify that this socket is in the Closed State
-    if(TCP_SocketPoll(tcbPtr) == SOCKET_CLOSED)
+    if(TCP_SocketPoll(tcbPtr) == SOCKET_CLOSING)
     {
         TCB_Remove(tcbPtr);
         ret = TCB_NO_ERROR;
@@ -1236,8 +1215,6 @@ bool TCP_Bind(tcpTCB_t *tcbPtr, uint16_t port)
 {
     bool ret = false;
 
-    TCP_SyslogWrite("tcp_bind");
-
     if (TCB_Check(tcbPtr))
     {
         tcbPtr->localPort = port;
@@ -1250,8 +1227,6 @@ bool TCP_Bind(tcpTCB_t *tcbPtr, uint16_t port)
 bool TCP_Listen(tcpTCB_t *tcbPtr)
 {
     bool ret = false;
-
-    TCP_SyslogWrite("tcp_listen");
 
     if (TCB_Check(tcbPtr))
     {
@@ -1283,6 +1258,7 @@ bool TCP_Connect(tcpTCB_t *tcbPtr, sockaddr_in_t *srvaddr)
             tcbPtr->localPort = nextAvailablePort++;
         }
 
+        tcbPtr->fsmState = CLOSED;
         tcbPtr->socketState = SOCKET_IN_PROGRESS;
         tcbPtr->localSeqno = nextSequenceNumber;
         tcbPtr->connectionEvent = ACTIVE_OPEN;
@@ -1298,8 +1274,6 @@ bool TCP_Connect(tcpTCB_t *tcbPtr, sockaddr_in_t *srvaddr)
 bool TCP_Close(tcpTCB_t *tcbPtr)
 {
     bool ret = false;
-
-    TCP_SyslogWrite("tcp_close");
 
     if (TCB_Check(tcbPtr))
     {
@@ -1329,7 +1303,8 @@ bool TCP_Send(tcpTCB_t *tcbPtr, uint8_t *data, uint16_t dataLen)
                 tcbPtr->txBufferPtr = tcbPtr->txBufferStart;
                 tcbPtr->bytesToSend = dataLen;
                 tcbPtr->txBufState = TX_BUFF_IN_USE;
-
+                tcbPtr->bytesSent = dataLen;
+                
                 tcbPtr->timeoutReloadValue = TCP_START_TIMEOUT_VAL;
                 tcbPtr->timeoutsCount = TCP_MAX_RETRIES;
 
@@ -1437,18 +1412,22 @@ void TCP_Update(void)
     {
         if (tcbPtr->timeout > 0)
         {
-            TCP_SyslogWrite("tcp timeout");
             tcbPtr->timeout = tcbPtr->timeout - 1;
 
             if (tcbPtr->timeout == 0)
             {
-                if (tcbPtr->timeoutsCount > 0)
+                // >= instead of >
+                //So that we go into TCP_FiniteStateMachine when the timeout counts are zero
+                //So that we send the RST flag when we run out of timeouts
+                if (tcbPtr->timeoutsCount >= 0)
                 {
                     // MAKE sure we don't overwrite anything else
                     if (tcbPtr->connectionEvent == NOP)
                     {
                         tcbPtr->timeout = tcbPtr->timeoutReloadValue;
-                        tcbPtr->timeoutsCount = tcbPtr->timeoutsCount - 1;
+                        //if not zero
+                        if (tcbPtr->timeoutsCount != 0)
+                            tcbPtr->timeoutsCount = tcbPtr->timeoutsCount - 1;
                         tcbPtr->connectionEvent = TIMEOUT;
                         currentTCB = tcbPtr;
                         TCP_FiniteStateMachine();
@@ -1460,3 +1439,4 @@ void TCP_Update(void)
         count ++;
     }
 }
+

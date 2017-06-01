@@ -41,10 +41,6 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #ifndef IPV4_H
 #define IPV4_H
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    extern "C" {
-#endif
-
 /**
   Section: Included Files
 */
@@ -55,19 +51,10 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 /**
   Section: Macro Declarations
 */
-#define IPV4_BROADCAST 0xFFFFFFFF
 
 /**
   Section: Data Types Definitions
 */
-extern uint32_t ipv4Address;
-extern uint32_t dstIPv4Address;
-extern uint32_t ipv4Gateway;
-extern uint8_t  gatewayMAC[6]; // I need this mac to get ip packets into the wild
-extern uint32_t ipv4DNS[2]; // allow a primary & secondary DNS
-extern uint32_t ipv4SubnetMask;
-extern uint32_t ipv4Router;
-extern ipv4Header_t ipv4Header;
 
 /**
   Section: DHCP Client Functions
@@ -103,14 +90,6 @@ error_msg IPV4_Packet(void);
 error_msg IPv4_Start(uint32_t dstAddress, ipProtocolNumbers protocol);
 
 
-/**This function returns the Source Ipv4 address of the Destination in Host Order.
- *
- * @return
- *      32-bit Destination IP address in Host Order.
- */
-uint32_t IPV4_GetMyIP(void);
-
-
 /**This function computes the pseudo header checksum for transport layer protocols.
  *
  * @param payload_len
@@ -135,8 +114,17 @@ uint16_t IPV4_PseudoHeaderChecksum(uint16_t payloadLen);
  */
 error_msg IPV4_Send(uint16_t payloadLength);
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    }
-#endif
+/**This function gets the Read pointer of Start of the IPv4 Packet 
+ * 
+ * @return 
+ *      IPv4 Read pointer address
+ */
+uint16_t IPV4_GetStartPosition(void);
 
+/**This function returns the length of the IPv4 Datagram
+ * 
+ * @return 
+ */
+
+uint16_t IPV4_GetDatagramLength(void);
 #endif

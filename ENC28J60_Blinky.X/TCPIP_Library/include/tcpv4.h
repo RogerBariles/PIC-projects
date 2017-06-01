@@ -40,14 +40,10 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #ifndef TCPV4_H
 #define	TCPV4_H
 
-
-
 /**
   Section: Included Files
 */
 #include "tcpip_types.h"
-#include "dhcp_client.h"
-
 
 #define TCP_FIN_FLAG 0x01U
 #define TCP_SYN_FLAG 0x02U
@@ -127,7 +123,9 @@ typedef struct
     uint8_t *txBufferPtr;
     uint16_t bytesToSend;
     tcpBufferState_t txBufState;
-
+    uint16_t bytesSent;
+    bool payloadSave;
+    
     tcp_fsm_states_t fsmState;      // connection state
     tcpEvent_t connectionEvent;
 
@@ -202,14 +200,14 @@ TCP_SACK = 4,       // lenght = 2   SACK Permitted,[RFC2018]
  */
 
 
-/** Call this function initialize some internal TCP stack variables.
+/*Initialize TCP structures
+ * This functions initializes some internal TCP stack variables
  * 
- * @param 
- *      None
+ * @param None
  * 
  * @return
  *      None
- */
+ *  */
 void TCP_Init(void); // init the tcp structures
 
 
@@ -409,8 +407,6 @@ int16_t TCP_GetRxLength(tcpTCB_t *tcbPtr);
  *      None
  */
 void TCP_Update(void);
-
-
 
 #endif  /* TCPV4_H */
 

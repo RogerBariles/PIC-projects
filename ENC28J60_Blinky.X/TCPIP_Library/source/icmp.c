@@ -45,8 +45,10 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #include "ethernet_driver.h"
 #include "ipv4.h"
 #include "icmp.h"
+#include "ip_database.h"
 
-
+/* Port 0 is N/A in both UDP and TCP */
+uint16_t portUnreachable = 0;
 
 /**
  * ICMP packet receive
@@ -57,16 +59,27 @@ error_msg ICMP_Receive(ipv4Header_t *ipv4Hdr)
 {
     icmpHeader_t icmpHdr;
     error_msg ret = ERROR;
-    ETH_ReadBlock((char *)&icmpHdr, sizeof(icmpHeader_t));
-    ETH_SaveRDPT();
+    ETH_ReadBlock(&icmpHdr, sizeof(icmpHeader_t));   
     
+    if(ipv4Hdr->dstIpAddress == SPECIAL_IPV4_BROADCAST_ADDRESS)
+        return DEST_IP_NOT_MATCHED;
     switch(ntohs((icmpTypeCodes_t)icmpHdr.typeCode))
     {
-        case ECHO_REQUEST:
+                case ECHO_REQUEST:
+        case UNASSIGNED_ECHO_TYPE_CODE_REQUEST_1:
+        case UNASSIGNED_ECHO_TYPE_CODE_REQUEST_2:
         {            
-            ret = ICMP_EchoReply(&icmpHdr,ipv4Hdr);
+            ret = ICMP_EchoReply(ipv4Hdr);
         }
-        break;
+        break;  
+        case DEST_PORT_UNREACHABLE:
+            ETH_Dump(4);
+            ETH_ReadBlock(ipv4Hdr,sizeof(ipv4Header_t));            
+            if(5 == ipv4Hdr->ihl)
+            {
+                portUnreachable = ETH_Read16();           
+            }
+            break;
         default:
             break;
     }
@@ -83,11 +96,15 @@ error_msg ICMP_Receive(ipv4Header_t *ipv4Hdr)
  * @return
  */
 
-error_msg ICMP_EchoReply(icmpHeader_t *icmpHdr, ipv4Header_t *ipv4Hdr)
+error_msg ICMP_EchoReply(ipv4Header_t *ipv4Hdr)
 {
     uint16_t cksm =0;
     error_msg ret = ERROR;
+    uint16_t identifier;
+    uint16_t sequence;
 
+    identifier = ETH_Read16();
+    sequence = ETH_Read16();        
     ret = IPv4_Start(ipv4Hdr->srcIpAddress, ipv4Hdr->protocol);
     if(ret == SUCCESS)
     {
@@ -98,14 +115,14 @@ error_msg ICMP_EchoReply(icmpHeader_t *icmpHdr, ipv4Header_t *ipv4Hdr)
 
         ETH_Write16(ECHO_REPLY);
         ETH_Write16(0); // checksum
-        ETH_Write16(ntohs(icmpHdr->identifier));
-        ETH_Write16(ntohs(icmpHdr->sequence));
+        
+        ETH_Write16(identifier);
+        ETH_Write16(sequence);
         
         // copy the next N bytes from the RX buffer into the TX buffer
-        ret = ETH_Copy(ipv4PayloadLength - sizeof(icmpHeader_t));
+        ret = ETH_Copy(ipv4PayloadLength - sizeof(icmpHeader_t) - 4);
         if(ret==SUCCESS) // copy can timeout in heavy network situations like flood ping
         {
-            ETH_SaveRDPT();
             // compute a checksum over the ICMP payload
             cksm = sizeof(ethernetFrame_t) + sizeof(ipv4Header_t);
             icmp_cksm_start = sizeof(ethernetFrame_t) + sizeof(ipv4Header_t);
@@ -115,4 +132,43 @@ error_msg ICMP_EchoReply(icmpHeader_t *icmpHdr, ipv4Header_t *ipv4Hdr)
         }
     }
     return ret;
+}
+
+error_msg ICMP_PortUnreachable(uint32_t srcIPAddress,uint32_t destIPAddress, uint16_t length)
+{    
+    error_msg ret = ERROR;
+    uint16_t cksm = 0;  
+    
+    if(srcIPAddress!=ipdb_getAddress())
+    {
+        return DEST_IP_NOT_MATCHED;
+    }
+    
+    ret = IPv4_Start(destIPAddress, ICMP_TCPIP);
+    if(ret == SUCCESS)
+    {        
+        ETH_Write16(DEST_PORT_UNREACHABLE);
+        ETH_Write16(0); // checksum
+        ETH_Write32(0); //unused and next-hop
+        ETH_SetReadPtr(IPV4_GetStartPosition());
+        ETH_Copy(sizeof(ipv4Header_t) + length);
+        cksm = ETH_TxComputeChecksum(sizeof(ethernetFrame_t) + sizeof(ipv4Header_t),  sizeof(icmpHeader_t)+ sizeof(ipv4Header_t) + length, 0);
+        ETH_Insert((char *)&cksm,sizeof(cksm),sizeof(ethernetFrame_t) + sizeof(ipv4Header_t) + offsetof(icmpHeader_t,checksum));
+        ret = IPV4_Send(sizeof(icmpHeader_t)+sizeof(ipv4Header_t)+length);
+       
+    }
+    return ret;
+}
+
+bool isPortUnreachable(uint16_t port)
+{
+    if(portUnreachable==port)
+        return true;
+    else
+        return false;
+}
+
+void resetPortUnreachable(void)
+{
+    portUnreachable = 0;
 }

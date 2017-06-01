@@ -47,8 +47,8 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #include "ethernet_driver.h"
 #include "mac_address.h"
 #include "ipv4.h"// needed to know my IP address
-#include "syslog.h"
 #include "tcpip_config.h"
+#include "ip_database.h"
 
 typedef struct
 {
@@ -76,6 +76,7 @@ typedef struct
     uint8_t age;            // replace oldest entry with new data as required.
 } arpMap_t;
 
+mac48Address_t hostMacAddress;
 
 arpMap_t arpMap[ARP_MAP_SIZE]; // maintain a small database of IP address & MAC addresses
 
@@ -85,8 +86,11 @@ arpMap_t arpMap[ARP_MAP_SIZE]; // maintain a small database of IP address & MAC 
 
 void ARPV4_Init(void)
 {
-    for(uint8_t x= 0 ; x < sizeof(arpMap); x++)
+    for(uint8_t x= 0 ; x < ARP_MAP_SIZE; x++)
+    {
         ((char *)arpMap)[x] = 0;
+    }
+    ETH_GetMAC((char*)&hostMacAddress);
 }
 
 /**
@@ -123,7 +127,7 @@ error_msg ARPV4_Packet(void)
             entryPointer++;
         }
 
-        if(ipv4Address && (ipv4Address == ntohl(header.tpa)))
+        if(ipdb_getAddress() && (ipdb_getAddress() == ntohl(header.tpa)))
         {
             if(!mergeFlag)
             {
@@ -153,9 +157,9 @@ error_msg ARPV4_Packet(void)
                 {
                     
                     header.tha.s = header.sha.s;
-                    ETH_GetMAC((char*)&header.sha.s);
+                    memcpy((void*)&header.sha.s, (void*)&hostMacAddress.s, sizeof(mac48Address_t));
                     header.tpa = header.spa;
-                    header.spa = htonl(ipv4Address);
+                    header.spa = htonl(ipdb_getAddress());
                     header.oper = htons(ARP_REPLY);
                     ETH_WriteBlock((char*)&header,sizeof(header));
 
@@ -203,8 +207,8 @@ error_msg ARPV4_Request(uint32_t destAddress)
     header.hlen = 6;
     header.plen = 4;
     header.oper = htons(ARP_REQUEST);
-    ETH_GetMAC((char*)&header.sha);
-    header.spa = htonl(ipv4Address);
+    memcpy((void*)&header.sha, (void*)&hostMacAddress, sizeof(mac48Address_t));
+    header.spa = htonl(ipdb_getAddress());
     header.tpa= htonl(destAddress);
     header.tha.s.byte1 = 0;
     header.tha.s.byte2 = 0;

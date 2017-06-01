@@ -41,9 +41,20 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #ifndef MSSP_SPI_MASTER_H
 #define	MSSP_SPI_MASTER_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #ifdef __cplusplus  // Provide C++ Compatibility
     extern "C" {
 #endif
+        
+/**
+  Section: Macro Declarations
+*/
+
+#define DUMMY_DATA 0x0
+#define SPI_RX_IN_PROGRESS 0x0
 
 /**
   @Summary
@@ -78,7 +89,154 @@ void spi_init(void);
   @Returns
     Received data.
 */
-char SPI_ExchangeByte(char);
+//char SPI_ExchangeByte(char);
+
+/**
+  @Summary
+    Exchanges a data byte over SPI
+
+  @Description
+    This routine exchanges a data byte over SPI bus.
+    This is a blocking routine.
+
+  @Preconditions
+    The SPI_Initialize() routine should be called
+    prior to use this routine.
+
+  @Param
+    data - data byte to be transmitted over SPI bus
+
+  @Returns
+    The received byte over SPI bus
+
+  @Example
+    <code>
+    uint8_t     writeData;
+    uint8_t     readData;
+    uint8_t     readDummy;
+
+    SPI_Initialize();
+
+    // for transmission over SPI bus
+    readDummy = SPI_Exchange8bit(writeData);
+
+    // for reception over SPI bus
+    readData = SPI_Exchange8bit(DUMMY_DATA);
+    </code>
+ */
+uint8_t SPI_Exchange8bit(uint8_t data);
+
+ /**
+  @Summary
+    Exchanges buffer of data over SPI
+
+  @Description
+    This routine exchanges buffer of data (of size one byte) over SPI bus.
+    This is a blocking routine.
+
+  @Preconditions
+    The SPI_Initialize() routine should be called
+    prior to use this routine.
+
+  @Param
+    dataIn  - Buffer of data to be transmitted over SPI.
+    bufLen  - Number of bytes to be exchanged.
+    dataOut - Buffer of data to be received over SPI.
+
+  @Returns
+    Number of bytes exchanged over SPI.
+
+  @Example
+    <code>
+    uint8_t     myWriteBuffer[MY_BUFFER_SIZE];
+    uint8_t     myReadBuffer[MY_BUFFER_SIZE];
+    uint8_t     total;
+
+    SPI_Initialize();
+
+    total = 0;
+    do
+    {
+        total = SPI_Exchange8bitBuffer(&myWriteBuffer[total], MY_BUFFER_SIZE - total, &myWriteBuffer[total]);
+
+        // Do something else...
+
+    } while(total < MY_BUFFER_SIZE);
+    </code>
+ */
+uint8_t SPI_Exchange8bitBuffer(uint8_t *dataIn, uint8_t bufLen, uint8_t *dataOut);
+
+/**
+  @Summary
+    Gets the SPI buffer full status
+
+  @Description
+    This routine gets the SPI buffer full status
+
+  @Preconditions
+    The SPI_Initialize() routine should be called
+    prior to use this routine.
+
+  @Param
+    None
+
+  @Returns
+    true  - if the buffer is full
+    false - if the buffer is not full.
+
+  @Example
+    Refer to SPI_Initialize() for an example
+ */
+bool SPI_IsBufferFull(void);
+
+/**
+  @Summary
+    Gets the status of write collision.
+
+  @Description
+    This routine gets the status of write collision.
+
+  @Preconditions
+    The SPI_Initialize() routine must have been called prior to use this routine.
+
+  @Param
+    None
+
+  @Returns
+    true  - if the write collision has occurred.
+    false - if the write collision has not occurred.
+
+  @Example
+    if(SPI_HasWriteCollisionOccured())
+    {
+        SPI_ClearWriteCollisionStatus();
+    }
+*/
+bool SPI_HasWriteCollisionOccured(void);
+
+/**
+  @Summary
+    Clears the status of write collision.
+
+  @Description
+    This routine clears the status of write collision.
+
+  @Preconditions
+    The SPI_Initialize() routine must have been called prior to use this routine.
+
+  @Param
+    None
+
+  @Returns
+    None
+
+  @Example
+    if(SPI_HasWriteCollisionOccured())
+    {
+        SPI_ClearWriteCollisionStatus();
+    }
+*/
+void SPI_ClearWriteCollisionStatus(void);
 
 #ifdef __cplusplus  // Provide C++ Compatibility
     }

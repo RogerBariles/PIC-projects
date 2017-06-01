@@ -40,16 +40,11 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #ifndef TCPIP_ARPV4_H
 #define TCPIP_ARPV4_H
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    extern "C" {
-#endif
-
 /**
   Section: Included Files
 */
 #include "ethernet_driver.h"
 #include "tcpip_config.h"
-
 
 /**
   Section: ARP functions
@@ -102,9 +97,5 @@ mac48Address_t* ARPV4_Lookup(uint32_t ipAddress);
  *
  */
 error_msg ARPV4_Request(uint32_t destAddress);
-
-#ifdef __cplusplus  // Provide C++ Compatibility
-    }
-#endif
 
 #endif // TCPIP_ARPV4_H

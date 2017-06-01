@@ -40,10 +40,6 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #ifndef ICMP_H
 #define	ICMP_H
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    extern "C" {
-#endif
-
 /**
   Section: ICMP Functions
  */
@@ -64,19 +60,38 @@ error_msg ICMP_Receive(ipv4Header_t *ipv4Hdr);
 
 /**This function sends an Echo Reply Packet to the destination.
  *
- * @param icmp_hdr
- *      ICMP header from the received packet.
- *
  * @param ipv4_hdr
  *      IPv4 Header of the received Packet.
  *
  * @return
  */
-error_msg ICMP_EchoReply(icmpHeader_t *icmpHdr, ipv4Header_t *ipv4Hdr);
+error_msg ICMP_EchoReply(ipv4Header_t *ipv4Hdr);
+/**This function sends an port unreachable ICMP messages to the destination
+ * 
+ * @param srcIPAddress
+ *      Source IP address
+ * @param destIPAddress
+ *     Destination IP address
+ * @param length
+ *      Length of the IP datagram
+ * @return 
+ */
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    }
-#endif
+error_msg ICMP_PortUnreachable(uint32_t srcIPAddress,uint32_t destIPAddress, uint16_t length);
 
+/**This function checks for the portUnreachable flag is set to the the Port number of the application
+ * 
+ * @param port
+ *      Port Number of the application
+ * @return 
+ */
+
+bool isPortUnreachable(uint16_t port);
+
+
+/**Resets the portUnreachable flag to zero
+ * 
+ */
+void resetPortUnreachable(void);
+ 
 #endif	/* ICMP_H */
-

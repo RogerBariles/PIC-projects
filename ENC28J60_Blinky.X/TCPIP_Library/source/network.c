@@ -37,11 +37,8 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 
 */
 
-
-#include <xc.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <time.h>
 #include "network.h"
 #include "tcpip_types.h"
@@ -51,31 +48,31 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #include "tcpv4.h"
 #include "rtcc.h"
 #include "ethernet_driver.h"
-#include "syslog.h"
-
+#include "ip_database.h"
 
 time_t arpTimer;
-
-#ifdef ENABLE_NET_DEBUG
-#define NET_SyslogWrite(x)  SYSLOG_Write(x)
-#else
-#define NET_SyslogWrite(x)
-#endif
 
 void Network_Init(void)
 {
     ETH_Init();
     ARPV4_Init();
     IPV4_Init();
+    DHCP_init();
     TCP_Init();
-    
+    rtcc_init();
+    Network_WaitForLink();  
+    timersInit();
+}
+
+void timersInit()
+{
     time(&arpTimer);
-    arpTimer += 10;
+    arpTimer += 10;  
 }
 
 void Network_WaitForLink(void)
 {
-    while(!ETH_CheckLinkUp()) NOP();
+    while(!ETH_CheckLinkUp()); 
 }
 
 void Network_Manage(void)
@@ -85,6 +82,7 @@ void Network_Manage(void)
 
     ETH_EventHandler();
     Network_Read(); // handle any packets that have arrived...
+    DHCP_Manage(); // update the DHCP status every second
 
     // manage any outstanding timeouts
     time(&now);
@@ -92,12 +90,12 @@ void Network_Manage(void)
     {
         ARPV4_Update();
         arpTimer += 10;
-    }    
+    }
     if(now > nowPv) // at least 1 second has elapsed
     {
-        DHCP_Manage(); // update the DHCP status every second
         // is defined as a minimum of 1 seconds in RFC973
         TCP_Update();  // handle timeouts
+
     }
     nowPv = now;
 }
@@ -115,22 +113,16 @@ void Network_Read(void)
         switch (header.id.type)
         {
             case ETHERTYPE_VLAN:
-                NET_SyslogWrite("VLAN Packet Dropped");
                 break;
             case ETHERTYPE_ARP:
-                NET_SyslogWrite("RX ARPV4 Packet");                
                 ARPV4_Packet();
                 break;
             case ETHERTYPE_IPV4:
-                NET_SyslogWrite("RX IPV4 Packet");
                 IPV4_Packet();
                 break;
             case ETHERTYPE_IPV6:
-                NET_SyslogWrite("IPV6 Packet Dropped");
                 break;
             default:
-                sprintf(debug_str,"%x : %d",header.id.type,header.id.length);
-                NET_SyslogWrite(debug_str);
                 break;
         }        
         ETH_Flush();

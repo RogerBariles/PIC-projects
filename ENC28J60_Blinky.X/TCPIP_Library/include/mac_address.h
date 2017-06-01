@@ -40,11 +40,13 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #ifndef MAC_ADDRESS_H
 #define	MAC_ADDRESS_H
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    extern "C" {
-#endif
-
 #include <stdint.h>
+
+
+/******************************** MAC Address *********************************/
+
+#define MAC_ADDRESS {0x02,0x00,0x00,0x00,0x00,0x01}
+
 
 typedef union
 {
@@ -54,12 +56,9 @@ typedef union
 
 extern const mac48Address_t broadcastMAC;
 extern const mac48Address_t macAddress;
+extern mac48Address_t hostMacAddress;
 
 const mac48Address_t *MAC_getAddress(void);
-
-#ifdef __cplusplus  // Provide C++ Compatibility
-    }
-#endif
 
 #endif	/* MAC_ADDRESS_H */
 

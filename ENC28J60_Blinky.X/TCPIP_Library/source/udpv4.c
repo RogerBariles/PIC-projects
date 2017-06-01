@@ -37,10 +37,6 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 
 */
 
-/**
- Section: Included Files
- */
-
 #include <stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -50,19 +46,18 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #include "network.h"
 #include "ethernet_driver.h"
 #include "tcpip_types.h"
+#include "icmp.h"
 
 /**
   Section: Macro Declarations
 */
 
-#define ARRAYSIZE(a)    (sizeof(a) / sizeof(*(a)))
-
 /**
   Section: Local Variables
 */
 
-static uint16_t destPort;
-static udpHeader_t udpHeader;
+uint16_t destPort;
+udpHeader_t udpHeader;
 
 /**
   Section: UDP Library APIs
@@ -74,7 +69,7 @@ error_msg UDP_Start(uint32_t destIP, uint16_t srcPort, uint16_t dstPort)
     error_msg ret = ERROR;
 
     // Start IPv4 Packet to Write IPv4 Header
-    ret = IPv4_Start(destIP,UDP);
+    ret = IPv4_Start(destIP,UDP_TCPIP);
     if(ret == SUCCESS)
     {
         //Start to Count the UDP payload length Bytes
@@ -108,7 +103,7 @@ error_msg UDP_Send()
     udpLength = htons(udpLength);
     
     // add the UDP header checksum
-    cksm = udpLength + UDP;
+    cksm = udpLength + UDP_TCPIP;
     cksm = ETH_TxComputeChecksum(sizeof(ethernetFrame_t) + sizeof(ipv4Header_t) - 8, udpLength + 8, cksm);
 
     // if the computed checksum is "0" set it to 0xFFFF
@@ -126,28 +121,39 @@ error_msg UDP_Send()
 error_msg UDP_Receive(uint16_t udpcksm) // catch all UDP packets and dispatch them to the appropriate callback
 {
     error_msg ret = ERROR;
-    const udp_handler_t *hptr;
+    udp_table_iterator_t  hptr;
     uint16_t x;
 
-    hptr = UDP_CallBackTable;
     ETH_ReadBlock((char *)&udpHeader,sizeof(udpHeader));
 
     if((udpHeader.checksum == 0) || (udpcksm == 0))
     {
         udpHeader.dstPort = ntohs(udpHeader.dstPort); // reverse the port number
         destPort = ntohs(udpHeader.srcPort);
+        udpHeader.length = ntohs(udpHeader.length);
         ret = PORT_NOT_AVAILABLE;
         // scan the udp port handlers and find a match.
         // call the port handler callback on a match
-        for(x = 0; x < ARRAYSIZE(UDP_CallBackTable);x++)
+        hptr = udp_table_getIterator();
+        
+        while(hptr != NULL)
         {
             if(hptr->portNumber == udpHeader.dstPort)
-            {
-                hptr->callBack(ntohs(udpHeader.length) - sizeof(udpHeader));
+            {          
+                if(udpHeader.length == IPV4_GetDatagramLength())
+                {
+                    hptr->callBack(udpHeader.length - sizeof(udpHeader));                    
+                }
                 ret = SUCCESS;
                 break;
             }
-            hptr ++;
+            hptr = udp_table_nextEntry(hptr);
+        }
+        if(ret== PORT_NOT_AVAILABLE)
+        {
+            
+            //Send Port unreachable                
+            ICMP_PortUnreachable(UDP_GetSrcIP(), UDP_GetDestIP(),(sizeof(udp_handler_t) + (udpHeader.length)));
         }
     }
     else
@@ -157,61 +163,8 @@ error_msg UDP_Receive(uint16_t udpcksm) // catch all UDP packets and dispatch th
     return ret;
 }
 
-
-uint16_t UDP_ReadBlock(void* data, uint16_t length)
-{
-    return (ETH_ReadBlock(data,length));
-}
-
-inline uint8_t UDP_Read8(void)
-{
-     return (ETH_Read8());
-}
-
-inline uint16_t UDP_Read16(void)
-{
-     return (ETH_Read16());
-}
-
-inline uint32_t UDP_Read32(void)
-{
-    return (ETH_Read32());
-}
-
-
-inline void UDP_Write8(uint8_t data)
-{
-    ETH_Write8(data);
-}
-
-inline void UDP_Write16(uint16_t data)
-{
-    ETH_Write16(data);
-
-}
-
-inline void UDP_Write32(uint32_t data)
-{
-    ETH_Write32(data);
-}
-
-inline void UDP_WriteBlock(void* data, uint16_t length)
-{
-    ETH_WriteBlock(data,length);
-}
-
 void udp_test(int len)    // print the UDP packet
 {
     while(len--)
         putch(ETH_Read8());
-}
-
-uint16_t UDP_GetDestPort(void)
-{
-    return(destPort);
-}
-
-uint32_t UDP_GetDestIP(void)
-{
-    return (ipv4Header.srcIpAddress);
 }

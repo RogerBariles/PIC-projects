@@ -7,12 +7,14 @@
 #include "hardware.h"
 #include "rtcc.h"
 #include "syslog.h"
-#include "tcpip_config.h"
+//#include "tcpip_config.h"
 #include "network.h"
 #include "ipv4.h"
-#include "udpv4.h"
+//#include "udpv4.h"
 #include "ethernet_driver.h"
 #include "tcpv4.h"
+#include "ip_database.h"
+//#include "ntp.h"
 
 
 void TCP_Blinky(void);
@@ -34,7 +36,7 @@ void TCP_Blinky(void)
     static uint8_t hit_counter;
     uint8_t len;
 
-    uint16_t rxLen, txLen, i;
+    uint16_t rxLen, txLen;
     socketState_t socket_state;
 
     socket_state = TCP_SocketPoll(&port7TCB);
@@ -90,6 +92,7 @@ void TCP_Blinky(void)
 
 void main(void) {
     time_t t;
+    //time_t time_check;
     unsigned long ip, old_ip;
     char str[32];
     bool no_ip_display = true;
@@ -97,25 +100,27 @@ void main(void) {
     
     //initialize hardware
     init_device();
+    SYSLOG_Init();    
     //init network stack
+    SYSLOG_Write("Waiting for Link");
     Network_Init();
-    SYSLOG_Init();
+    SYSLOG_Write("Link started");  
     
     //enable interrupts
     IPEN = 1;
-    GIEH = 1;
+    GIEH = 1;    
     
-    SYSLOG_Write("Waiting for Link");
-    Network_WaitForLink();
-    SYSLOG_Write("Link started");    
-    
+    //SYSLOG_Write("Waiting for Link");
+    //Network_WaitForLink(); //done in Network_Init()
+    //SYSLOG_Write("Link started");  
+         
     while(1){     
         time_t now_p;
         time(&now_p);
         Network_Manage();
         time(&t);
         
-        ip = IPV4_GetMyIP();
+        ip = ipdb_getAddress();// IPV4_GetMyIP();
         // make sure we update the IP if we get another one from the DHCP server
         
         if((no_ip_display) || (old_ip != ip))

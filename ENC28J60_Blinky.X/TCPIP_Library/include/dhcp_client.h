@@ -41,10 +41,6 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #ifndef DHCP_CLIENT_H
 #define	DHCP_CLIENT_H
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    extern "C" {
-#endif
-
 /**
   Section: Included Files
 */
@@ -53,59 +49,55 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 
 
 /**
-  Section: Enumeration Definition
-*/
-typedef enum
-{
-    DHCP_DISCOVER = 1,
-    DHCP_OFFER, DHCP_REQUEST, DHCP_DECLINE, DHCP_ACK, DHCP_NACK, DHCP_RELEASE,
-    DHCP_INFORM, DHCP_FORCERENEW, DHCP_LEASEQUERY, DHCP_LEASEUNASSIGNED, DHCP_LEASEUNKNOWN,
-    DHCP_LEASEACTIVE, DHCP_BULKLEASEQUERY, DHCP_LEASEQUERYDONE
-}dhcp_type;
-
-typedef enum
-{
-    INIT = 1, INIT_REBOOT, SELECTING, REQUESTING, BOUND
-}dhcp_client_state;
-
-/**
   Section: DHCP Client Functions
  */
 
-/**This function will sends DHCP packet to the DHCP server.
- * The type of packet is passed as a parameter.
- *
- * @param dhcp_type
- *      Type of DHCP packet.
+
+/*DHCP Initialization.
+ * The function will initialize DHCP.
+ * 
+ * @param None
+ * 
+ * @return Nothing
+ * 
  */
-void DHCP_Request(dhcp_type);
+void DHCP_init(void);
 
-
-/**This fucntion receives and process the DHCP packet.
- * The length of the packet is passed as paramater.
- *
+/*DHCP process packets.
+ * This function receives and processes the DHCP packet.
+ * 
  * @param length
  *      Length of the received DHCP packet.
+ * 
+ * @return Nothing
+ * 
  */
 void DHCP_Handler(int);
 
 
-/**This function updates the DHCP status at least for every one second.
- *
+/*DHCP status update.
+ * This function updates the DHCP status at least for every one second.
+ * 
+ * @param None
+ *      
+ * @return Nothing
+ * 
  */
 void DHCP_Manage(void);
 
 
-/**This function writes zeroes for the number of bytes passed.
- *
+/*DHCP write zeros.
+ * This function writes zeroes for the number of bytes passed.
+ * 
  * @param length
- *      Number of bytes.
+ *      Number of bytes
+ * 
+ * @return Nothing
+ * 
  */
 void DHCP_WriteZeros(uint16_t length);
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    }
-#endif
+
 
 #endif	/* DHCP_CLIENT_H */
 

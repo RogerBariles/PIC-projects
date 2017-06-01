@@ -40,10 +40,6 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #ifndef TCPIP_CONFIG_H
 #define	TCPIP_CONFIG_H
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    extern "C" {
-#endif
-
 /**
   Section: Included Files
 */
@@ -55,18 +51,14 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 /* Build the IPv4 Address*/
 #define MAKE_IPV4_ADDRESS(a,b,c,d) ((uint32_t)(((uint32_t)a << 24) | ((uint32_t)b<<16) | ((uint32_t)c << 8) | (uint32_t)d))
 
-/******************************** MAC Address *********************************/
-#define MAC_ADDRESS {0x00,0xDE,0xAD,0x00, 0xBE, 0XEF}
-
-
-
 /******************************** ARP Protocol Defines *********************************/
 #define ARP_MAP_SIZE 8
 
 /******************************** DHCP Protocol Defines ********************************/
-const char dhcpName[] = "PIC18F ETHERNET";
+const char dhcpName[] = "PIC18F46K20 Ethernet";
 // unfortunately, you must defined the macro below as sizeof does not work in the preprocessor
-#define DHCP_NAME_SIZE 15
+#define DHCP_NAME_SIZE 20
+
 
 /******************************** IP Protocol Defines ********************************/
 #define IPv4_TTL            64u
@@ -88,12 +80,8 @@ const char dhcpName[] = "PIC18F ETHERNET";
 
 /******************************** TCP/IP stack debug Defines *********************************/
 
-#define ENABLE_TCP_DEBUG
-#define ENABLE_IP_DEBUG
-#define ENABLE_NET_DEBUG
-
-#ifdef __cplusplus  // Provide C++ Compatibility
-    }
-#endif
+//#define ENABLE_TCP_DEBUG
+//#define ENABLE_IP_DEBUG
+//#define ENABLE_NET_DEBUG
 
 #endif	/* TCPIP_CONFIG_H */

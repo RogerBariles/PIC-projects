@@ -41,21 +41,7 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #ifndef UDPV4_PORT_HANDLER_TABLE_H
 #define	UDPV4_PORT_HANDLER_TABLE_H
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    extern "C" {
-#endif
-
 #include "tcpip_types.h"
-#include "dhcp_client.h"
-#ifdef UDP_DEMO
-#include "udp_demo.h"
-#endif
-
-void udp_test(int len);    // print the UDP packet
-extern void DEMO_UDP_Recv(int len);
-extern void DEMO_UDP_IdlePkt(int length);
-
-
 
 typedef struct
 {
@@ -63,18 +49,10 @@ typedef struct
     ip_receive_function_ptr callBack;
 } udp_handler_t;
 
-const udp_handler_t UDP_CallBackTable[] = \
-{
-    #ifdef UDP_DEMO
-    {65532, &DEMO_UDP_IdlePkt},
-    {DEST_PORT, &DEMO_UDP_Recv},
-    #endif
-    {68, &DHCP_Handler}     // a catcher to manage the DHCP process
-};
+typedef  udp_handler_t * udp_table_iterator_t;
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    }
-#endif
+udp_table_iterator_t udp_table_getIterator(void);
+udp_table_iterator_t udp_table_nextEntry(udp_table_iterator_t i);
 
 #endif	/* UDPV4_PORT_HANDLER_TABLE_H */
 

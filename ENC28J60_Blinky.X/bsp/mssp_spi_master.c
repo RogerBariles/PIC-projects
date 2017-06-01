@@ -55,10 +55,78 @@ void spi_init(void)
     // SSPADD 0; 
     SSPADD = 0x00;
 }
-
+/*
 char SPI_ExchangeByte(char v)
 {
     SSPBUF = v;
     while (SSPSTATbits.BF == 0);
     return SSPBUF;
+}*/
+
+uint8_t SPI_Exchange8bit(uint8_t data)
+{
+    // Clear the Write Collision flag, to allow writing
+    SSPCON1bits.WCOL = 0;
+
+    SSPBUF = data;
+
+    while(SSPSTATbits.BF == SPI_RX_IN_PROGRESS)
+    {
+    }
+
+    return (SSPBUF);
+}
+
+uint8_t SPI_Exchange8bitBuffer(uint8_t *dataIn, uint8_t bufLen, uint8_t *dataOut)
+{
+    uint8_t bytesWritten = 0;
+
+    if(bufLen != 0)
+    {
+        if(dataIn != NULL)
+        {
+            while(bytesWritten < bufLen)
+            {
+                if(dataOut == NULL)
+                {
+                    SPI_Exchange8bit(dataIn[bytesWritten]);
+                }
+                else
+                {
+                    dataOut[bytesWritten] = SPI_Exchange8bit(dataIn[bytesWritten]);
+                }
+
+                bytesWritten++;
+            }
+        }
+        else
+        {
+            if(dataOut != NULL)
+            {
+                while(bytesWritten < bufLen )
+                {
+                    dataOut[bytesWritten] = SPI_Exchange8bit(DUMMY_DATA);
+
+                    bytesWritten++;
+                }
+            }
+        }
+    }
+
+    return bytesWritten;
+}
+
+bool SPI_IsBufferFull(void)
+{
+    return (SSPSTATbits.BF);
+}
+
+bool SPI_HasWriteCollisionOccured(void)
+{
+    return (SSPCON1bits.WCOL);
+}
+
+void SPI_ClearWriteCollisionStatus(void)
+{
+    SSPCON1bits.WCOL = 0;
 }

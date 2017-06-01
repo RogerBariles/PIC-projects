@@ -40,16 +40,8 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #ifndef SYSLOG_H
 #define	SYSLOG_H
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    extern "C" {
-#endif
-
 void SYSLOG_Init(void);
 void SYSLOG_Write(const char *message);
-
-#ifdef __cplusplus  // Provide C++ Compatibility
-    }
-#endif
 
 #endif	/* SYSLOG_H */
 

@@ -42,9 +42,7 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #ifndef TCPIP_TCPIP_TYPES_H
 #define TCPIP_TCPIP_TYPES_H
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    extern "C" {
-#endif
+
 
 #include <stdint.h>
 
@@ -79,11 +77,56 @@ typedef struct
 
 uint8_t Control_Byte = 0x00;
 
-#define ETHERTYPE_IPV4 0x0800
-#define ETHERTYPE_ARP  0x0806
-#define ETHERTYPE_IPV6 0x86DD
-#define ETHERTYPE_VLAN 0x8100
-#define ETHERTYPE_LLDP 0x88CC
+#define ETHERTYPE_IPV4      0x0800
+#define ETHERTYPE_ARP       0x0806
+#define ETHERTYPE_IPV6      0x86DD
+#define ETHERTYPE_VLAN      0x8100
+#define ETHERTYPE_LLDP      0x88CC
+#define ETHERTYPE_EAPoL     0x888E
+
+/********* From RFC 2851 **********/
+#define INETADDRESSTYPE_IPV4   1
+#define INETADDRESSTYPE_IPV6   2
+#define INETADDRESSTYPE_DNS    16
+
+
+/********* From RFC 3493 **********/
+/* Supported address families. */
+
+#ifndef AF_INET6
+#define AF_INET     2   /* Internet IP Protocol     */
+#endif
+
+#ifndef AF_INET6
+#define AF_INET6    10  /*  IP version 6            */
+#endif
+
+/* Protocol families, same as address families. */
+#ifndef PF_INET
+#define PF_INET     AF_INET
+#endif
+
+#ifndef PF_INET6
+#define PF_INET6    AF_INET6
+#endif
+
+#ifndef IN6ADDR_ANY_INIT
+#define IN6ADDR_ANY_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } }
+#endif
+
+#ifndef IN6ADDR_LOOPBACK_INIT
+#define IN6ADDR_LOOPBACK_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } } }
+#endif
+
+/* Length of the string form for IP. */
+#ifndef INET_ADDRSTRLEN
+#define INET_ADDRSTRLEN     16
+#endif
+
+/* Length of the string form for IPv6. */
+#ifndef INET6_ADDRSTRLEN
+#define INET6_ADDRSTRLEN    46
+#endif            
 
 typedef struct
 {
@@ -129,10 +172,22 @@ typedef struct
         };
     };
     uint16_t checksum;
-    uint16_t identifier;
-    uint16_t sequence;
-
 } icmpHeader_t;
+
+
+typedef struct
+{
+    union
+    {
+        uint16_t typeCode;
+        struct
+        {
+            uint8_t code;
+            uint8_t type;
+        };
+    };
+    uint16_t checksum;
+} icmpv6Header_t;
 
 // ICMP Types and Codes
 typedef enum
@@ -165,6 +220,10 @@ typedef enum
     ALTERNATE_HOST_ADDRESS = 0x0600,
     // Echo Request
     ECHO_REQUEST = 0x0800, // ask for a ping!
+            
+   //Unassigned codes
+    UNASSIGNED_ECHO_TYPE_CODE_REQUEST_1 = 0x082A,           
+    UNASSIGNED_ECHO_TYPE_CODE_REQUEST_2 = 0x08FC,
     // router advertisement
     ROUTER_ADVERTISEMENT = 0x0900,
     ROUTER_SOLICITATION = 0x0A00,
@@ -218,150 +277,152 @@ typedef struct
 
 typedef struct
 {
-    unsigned int version:4;
-    unsigned int trafficClass:8;// this is a problem
-    unsigned int flowLabel:20;
+    uint16_t version:4;
+    uint16_t trafficClass:8;// this is a problem
+    uint16_t flowLabel1stNibble:4;
+
+    uint16_t flowLabelRest;
     uint16_t payloadLength;
     uint8_t nextHeader;
     uint8_t hopLimit;
-    uint8_t srcAddress[8];
-    uint8_t dstAddress[8];
+    uint8_t srcAddress[16];
+    uint8_t dstAddress[16];
     // payload goes here
 } ipv6Header_t;
 
 // List from RFC5237 http://www.iana.org/assignments/protocol-numbers/protocol-numbers.txt
 typedef enum
 {
-    HOPOPT          =  0,    // IPv6 Hop-by-Hop Option    [RFC2460]
-    ICMP            =  1,    // Internet Control Message    [RFC792]
-    IGMP            =  2,    // Internet Group Management    [RFC1112]
-    GGP             =  3,    // Gateway-to-Gateway    [RFC823]
-    IPV4            =  4,    // IPv4 encapsulation    [RFC2003]
-    ST              =  5,    // Stream    [RFC1190][RFC1819]
-    TCP             =  6,    // Transmission Control    [RFC793]
-    CBT             =  7,    // CBT    [Tony_Ballardie]
-    EGP             =  8,    // Exterior Gateway Protocol    [RFC888][David_Mills]
-    IGP             =  9,    // any private interior gateway (used by Cisco for their IGRP)    [Internet_Assigned_Numbers_Authority]
-    BBN_RCC_MON     = 10,    // BBN RCC Monitoring    [Steve_Chipman]
-    NVP_II          = 11,    // Network Voice Protocol    [RFC741][Steve_Casner]
-    PUP             = 12,    // PUP    [Boggs, D., J. Shoch, E. Taft, and R. Metcalfe, "PUP: An Internetwork Architecture", XEROX Palo Alto Research Center, CSL-79-10, July 1979; also in IEEE Transactions on Communication, Volume COM-28, Number 4, April 1980.][[XEROX]]
-    ARGUS           = 13,    // ARGUS    [Robert_W_Scheifler]
-    EMCON           = 14,    // EMCON    [<mystery contact>]
-    XNET            = 15,    // Cross Net Debugger    [Haverty, J., "XNET Formats for Internet Protocol Version 4", IEN 158, October 1980.][Jack_Haverty]
-    CHAOS           = 16,    // Chaos    [J_Noel_Chiappa]
-    UDP             = 17,    // User Datagram    [RFC768][Jon_Postel]
-    MUX             = 18,    // Multiplexing    [Cohen, D. and J. Postel, "Multiplexing Protocol", IEN 90, USC/Information Sciences Institute, May 1979.][Jon_Postel]
-    DCN_MEAS        = 19,    // DCN Measurement Subsystems    [David_Mills]
-    HMP             = 20,    // Host Monitoring    [RFC869][Robert_Hinden]
-    PRM             = 21,    // Packet Radio Measurement    [Zaw_Sing_Su]
-    XNS_IDP         = 22,    // XEROX NS IDP    ["The Ethernet, A Local Area Network: Data Link Layer and Physical Layer Specification", AA-K759B-TK, Digital Equipment Corporation, Maynard, MA. Also as: "The Ethernet - A Local Area Network", Version 1.0, Digital Equipment Corporation, Intel Corporation, Xerox Corporation, September 1980. And: "The Ethernet, A Local Area Network: Data Link Layer and Physical Layer Specifications", Digital, Intel and Xerox, November 1982. And: XEROX, "The Ethernet, A Local Area Network: Data Link Layer and Physical Layer Specification", X3T51/80-50, Xerox Corporation, Stamford, CT., October 1980.][[XEROX]]
-    TRUNK_1         = 23,    // Trunk-1    [Barry_Boehm]
-    TRUNK_2         = 24,    // Trunk-2    [Barry_Boehm]
-    LEAF_1          = 25,    // Leaf-1    [Barry_Boehm]
-    LEAF_2          = 26,    // Leaf-2    [Barry_Boehm]
-    RDP             = 27,    // Reliable Data Protocol    [RFC908][Robert_Hinden]
-    IRTP            = 28,    // Internet Reliable Transaction    [RFC938][Trudy_Miller]
-    ISO_TP4         = 29,    // ISO Transport Protocol Class 4    [RFC905][<mystery contact>]
-    NETBLT          = 30,    // Bulk Data Transfer Protocol    [RFC969][David_Clark]
-    MFE_NSP         = 31,    // MFE Network Services Protocol    [Shuttleworth, B., "A Documentary of MFENet, a National Computer Network", UCRL-52317, Lawrence Livermore Labs, Livermore, California, June 1977.][Barry_Howard]
-    MERIT_INP       = 32,    // MERIT Internodal Protocol    [Hans_Werner_Braun]
-    DCCP            = 33,    // Datagram Congestion Control Protocol    [RFC4340]
-    THREEPC         = 34,    // Third Party Connect Protocol    [Stuart_A_Friedberg]
-    IDPR            = 35,    // Inter-Domain Policy Routing Protocol    [Martha_Steenstrup]
-    XTP             = 36,    // XTP    [Greg_Chesson]
-    DDP             = 37,    // Datagram Delivery Protocol    [Wesley_Craig]
-    IDPR_CMTP       = 38,    // IDPR Control Message Transport Proto    [Martha_Steenstrup]
-    TPpp            = 39,    // TP++ Transport Protocol    [Dirk_Fromhein]
-    IL              = 40,    // IL Transport Protocol    [Dave_Presotto]
-    IPV6_TUNNEL     = 41,    // IPv6 encapsulation    [RFC2473]
-    SDRP            = 42,    // Source Demand Routing Protocol    [Deborah_Estrin]
-    IPV6_Route      = 43,    // Routing Header for IPv6    [Steve_Deering]
-    IPV6_Frag       = 44,    // Fragment Header for IPv6    [Steve_Deering]
-    IDRP            = 45,    // Inter-Domain Routing Protocol    [Sue_Hares]
-    RSVP            = 46,    // Reservation Protocol    [RFC2205][RFC3209][Bob_Braden]
-    GRE             = 47,    // Generic Routing Encapsulation    [RFC1701][Tony_Li]
-    DSR             = 48,    // Dynamic Source Routing Protocol    [RFC4728]
-    BNA             = 49,    // BNA    [Gary Salamon]
-    ESP             = 50,    // Encap Security Payload    [RFC4303]
-    AH              = 51,    // Authentication Header    [RFC4302]
-    I_NLSP          = 52,    // Integrated Net Layer Security TUBA    [K_Robert_Glenn]
-    SWIPE           = 53,    // IP with Encryption    [John_Ioannidis]
-    NARP            = 54,    // NBMA Address Resolution Protocol    [RFC1735]
-    MOBILE          = 55,    // IP Mobility    [Charlie_Perkins]
-    TLSP            = 56,    // Transport Layer Security Protocol using Kryptonet key management    [Christer_Oberg]
-    SKIP            = 57,    // SKIP    [Tom_Markson]
-    IPV6_ICMP       = 58,    // ICMP for IPv6    [RFC2460]
-    IPV6_NoNxt      = 59,    // No Next Header for IPv6    [RFC2460]
-    IPV6_Opts       = 60,    // Destination Options for IPv6    [RFC2460]
-    CFTP            = 62,    // CFTP    [Forsdick, H., "CFTP", Network Message, Bolt Beranek and Newman, January 1982.][Harry_Forsdick]
-    SAT_EXPAK       = 64,    // SATNET and Backroom EXPAK    [Steven_Blumenthal]
-    KRYPTOLAN       = 65,    // Kryptolan    [Paul Liu]
-    RVD             = 66,    // MIT Remote Virtual Disk Protocol    [Michael_Greenwald]
-    IPPC            = 67,    // Internet Pluribus Packet Core    [Steven_Blumenthal]
-    SAT_MON         = 69,    // SATNET Monitoring    [Steven_Blumenthal]
-    VISA            = 70,    // VISA Protocol    [Gene_Tsudik]
-    IPCV            = 71,    // Internet Packet Core Utility    [Steven_Blumenthal]
-    CPNX            = 72,    // Computer Protocol Network Executive    [David Mittnacht]
-    CPHB            = 73,    // Computer Protocol Heart Beat    [David Mittnacht]
-    WSN             = 74,    // Wang Span Network    [Victor Dafoulas]
-    PVP             = 75,    // Packet Video Protocol    [Steve_Casner]
-    BR_SAT_MON      = 76,    // Backroom SATNET Monitoring    [Steven_Blumenthal]
-    SUN_ND          = 77,    // SUN ND PROTOCOL-Temporary    [William_Melohn]
-    WB_MON          = 78,    // WIDEBAND Monitoring    [Steven_Blumenthal]
-    WB_EXPAK        = 79,    // WIDEBAND EXPAK    [Steven_Blumenthal]
-    ISO_IP          = 80,    // ISO Internet Protocol    [Marshall_T_Rose]
-    VMTP            = 81,    // VMTP    [Dave_Cheriton]
-    SECURE_VMTP     = 82,    // SECURE-VMTP    [Dave_Cheriton]
-    VINES           = 83,    // VINES    [Brian Horn]
-    TTP             = 84,    // TTP    [Jim_Stevens]
-    IPTM            = 84,    // Protocol Internet Protocol Traffic Manager    [Jim_Stevens]
-    NSFNET_IGP      = 85,    // NSFNET-IGP    [Hans_Werner_Braun]
-    DGP             = 86,    // Dissimilar Gateway Protocol    [M/A-COM Government Systems, "Dissimilar Gateway Protocol Specification, Draft Version", Contract no. CS901145, November 16, 1987.][Mike_Little]
-    TCF             = 87,    // TCF    [Guillermo_A_Loyola]
-    EIGRP           = 88,    // EIGRP    [Cisco Systems, "Gateway Server Reference Manual", Manual Revision B, January 10, 1988.][Guenther_Schreiner]
-    OSPFIGP         = 89,    // OSPFIGP    [RFC1583][RFC2328][RFC5340][John_Moy]
-    Sprite_RPC      = 90,    // Sprite RPC Protocol    [Welch, B., "The Sprite Remote Procedure Call System", Technical Report, UCB/Computer Science Dept., 86/302, University of California at Berkeley, June 1986.][Bruce Willins]
-    LARP            = 91,    // Locus Address Resolution Protocol    [Brian Horn]
-    MTP             = 92,    // Multicast Transport Protocol    [Susie_Armstrong]
-    AX25            = 93,    // AX.25 Frames    [Brian_Kantor]
-    IPIP            = 94,    // IP-within-IP Encapsulation Protocol    [John_Ioannidis]
-    MICP            = 95,    // Mobile Internetworking Control Pro.    [John_Ioannidis]
-    SCC_SP          = 96,    // Semaphore Communications Sec. Pro.    [Howard_Hart]
-    ETHERIP         = 97,    // Ethernet-within-IP Encapsulation    [RFC3378]
-    ENCAP           = 98,    // Encapsulation Header    [RFC1241][Robert_Woodburn]
-    GMTP            = 100,    // GMTP    [[RXB5]]
-    IFMP            = 101,    // Ipsilon Flow Management Protocol    [Bob_Hinden][November 1995, 1997.]
-    PNNI            = 102,    // PNNI over IP    [Ross_Callon]
-    PIM             = 103,    // Protocol Independent Multicast    [RFC4601][Dino_Farinacci]
-    ARIS            = 104,    // ARIS    [Nancy_Feldman]
-    SCPS            = 105,    // SCPS    [Robert_Durst]
-    QNX             = 106,    // QNX    [Michael_Hunter]
-    A_N             = 107,    // Active Networks    [Bob_Braden]
-    IPComp          = 108,    // IP Payload Compression Protocol    [RFC2393]
-    SNP             = 109,    // Sitara Networks Protocol    [Manickam_R_Sridhar]
-    Compaq_Peer     = 110,    // Compaq Peer Protocol    [Victor_Volpe]
-    IPX_in_IP       = 111,    // IPX in IP    [CJ_Lee]
-    VRRP            = 112,    // Virtual Router Redundancy Protocol    [RFC5798]
-    PGM2             = 113,    // PGM Reliable Transport Protocol    [Tony_Speakman]
-    L2TP            = 115,    // Layer Two Tunneling Protocol    [RFC3931][Bernard_Aboba]
-    DDX             = 116,    // D-II Data Exchange (DDX)    [John_Worley]
-    IATP            = 117,    // Interactive Agent Transfer Protocol    [John_Murphy]
-    STP             = 118,    // Schedule Transfer Protocol    [Jean_Michel_Pittet]
-    SRP             = 119,    // SpectraLink Radio Protocol    [Mark_Hamilton]
-    UTI             = 120,    // UTI    [Peter_Lothberg]
-//    SMP             = 121,    // Simple Message Protocol    [Leif_Ekblad]
-    SM              = 122,    // SM    [Jon_Crowcroft]
-    PTP             = 123,    // Performance Transparency Protocol    [Michael_Welzl]
-    ISIS            = 124,    //  over IPv4        [Tony_Przygienda]
-    FIRE            = 125,    // [Criag_Partridge]
-    CRTP            = 126,    // Combat Radio Transport Protocol    [Robert_Sautter]
-    CRUDP           = 127,    // Combat Radio User Datagram    [Robert_Sautter]
-    SSCOPMCE        = 128,    // [Kurt_Waber]
-    IPLT            = 129,    // [[Hollbach]]
-    SPS             = 130,    // Secure Packet Shield    [Bill_McIntosh]
-    PIPE            = 131,    // Private IP Encapsulation within IP    [Bernhard_Petri]
-    SCTP            = 132,    // Stream Control Transmission Protocol    [Randall_R_Stewart]
-    FC              = 133     // Fibre Channel    [Murali_Rajagopal][RFC6172]
+    HOPOPT_TCPIP          =  0,    // IPv6 Hop-by-Hop Option    [RFC2460]
+    ICMP_TCPIP            =  1,    // Internet Control Message    [RFC792]
+    IGMP_TCPIP            =  2,    // Internet Group Management    [RFC1112]
+    GGP_TCPIP             =  3,    // Gateway-to-Gateway    [RFC823]
+    IPV4_TCPIP            =  4,    // IPv4 encapsulation    [RFC2003]
+    ST_TCPIP              =  5,    // Stream    [RFC1190][RFC1819]
+    TCP_TCPIP             =  6,    // Transmission Control    [RFC793]
+    CBT_TCPIP             =  7,    // CBT    [Tony_Ballardie]
+    EGP_TCPIP             =  8,    // Exterior Gateway Protocol    [RFC888][David_Mills]
+    IGP_TCPIP             =  9,    // any private interior gateway (used by Cisco for their IGRP)    [Internet_Assigned_Numbers_Authority]
+    BBN_RCC_MON_TCPIP     = 10,    // BBN RCC Monitoring    [Steve_Chipman]
+    NVP_II_TCPIP          = 11,    // Network Voice Protocol    [RFC741][Steve_Casner]
+    PUP_TCPIP             = 12,    // PUP    [Boggs, D., J. Shoch, E. Taft, and R. Metcalfe, "PUP: An Internetwork Architecture", XEROX Palo Alto Research Center, CSL-79-10, July 1979; also in IEEE Transactions on Communication, Volume COM-28, Number 4, April 1980.][[XEROX]]
+    ARGUS_TCPIP           = 13,    // ARGUS    [Robert_W_Scheifler]
+    EMCON_TCPIP           = 14,    // EMCON    [<mystery contact>]
+    XNET_TCPIP            = 15,    // Cross Net Debugger    [Haverty, J., "XNET Formats for Internet Protocol Version 4", IEN 158, October 1980.][Jack_Haverty]
+    CHAOS_TCPIP           = 16,    // Chaos    [J_Noel_Chiappa]
+    UDP_TCPIP             = 17,    // User Datagram    [RFC768][Jon_Postel]
+    MUX_TCPIP             = 18,    // Multiplexing    [Cohen, D. and J. Postel, "Multiplexing Protocol", IEN 90, USC/Information Sciences Institute, May 1979.][Jon_Postel]
+    DCN_MEAS_TCPIP        = 19,    // DCN Measurement Subsystems    [David_Mills]
+    HMP_TCPIP             = 20,    // Host Monitoring    [RFC869][Robert_Hinden]
+    PRM_TCPIP             = 21,    // Packet Radio Measurement    [Zaw_Sing_Su]
+    XNS_IDP_TCPIP         = 22,    // XEROX NS IDP    ["The Ethernet, A Local Area Network: Data Link Layer and Physical Layer Specification", AA-K759B-TK, Digital Equipment Corporation, Maynard, MA. Also as: "The Ethernet - A Local Area Network", Version 1.0, Digital Equipment Corporation, Intel Corporation, Xerox Corporation, September 1980. And: "The Ethernet, A Local Area Network: Data Link Layer and Physical Layer Specifications", Digital, Intel and Xerox, November 1982. And: XEROX, "The Ethernet, A Local Area Network: Data Link Layer and Physical Layer Specification", X3T51/80-50, Xerox Corporation, Stamford, CT., October 1980.][[XEROX]]
+    TRUNK_1_TCPIP         = 23,    // Trunk-1    [Barry_Boehm]
+    TRUNK_2_TCPIP         = 24,    // Trunk-2    [Barry_Boehm]
+    LEAF_1_TCPIP          = 25,    // Leaf-1    [Barry_Boehm]
+    LEAF_2_TCPIP          = 26,    // Leaf-2    [Barry_Boehm]
+    RDP_TCPIP             = 27,    // Reliable Data Protocol    [RFC908][Robert_Hinden]
+    IRTP_TCPIP            = 28,    // Internet Reliable Transaction    [RFC938][Trudy_Miller]
+    ISO_TP4_TCPIP         = 29,    // ISO Transport Protocol Class 4    [RFC905][<mystery contact>]
+    NETBLT_TCPIP          = 30,    // Bulk Data Transfer Protocol    [RFC969][David_Clark]
+    MFE_NSP_TCPIP         = 31,    // MFE Network Services Protocol    [Shuttleworth, B., "A Documentary of MFENet, a National Computer Network", UCRL-52317, Lawrence Livermore Labs, Livermore, California, June 1977.][Barry_Howard]
+    MERIT_INP_TCPIP       = 32,    // MERIT Internodal Protocol    [Hans_Werner_Braun]
+    DCCP_TCPIP            = 33,    // Datagram Congestion Control Protocol    [RFC4340]
+    THREEPC_TCPIP         = 34,    // Third Party Connect Protocol    [Stuart_A_Friedberg]
+    IDPR_TCPIP            = 35,    // Inter-Domain Policy Routing Protocol    [Martha_Steenstrup]
+    XTP_TCPIP             = 36,    // XTP    [Greg_Chesson]
+    DDP_TCPIP             = 37,    // Datagram Delivery Protocol    [Wesley_Craig]
+    IDPR_CMTP_TCPIP       = 38,    // IDPR Control Message Transport Proto    [Martha_Steenstrup]
+    TPpp_TCPIP            = 39,    // TP++ Transport Protocol    [Dirk_Fromhein]
+    IL_TCPIP              = 40,    // IL Transport Protocol    [Dave_Presotto]
+    IPV6_TUNNEL_TCPIP     = 41,    // IPv6 encapsulation    [RFC2473]
+    SDRP_TCPIP            = 42,    // Source Demand Routing Protocol    [Deborah_Estrin]
+    IPV6_Route_TCPIP      = 43,    // Routing Header for IPv6    [Steve_Deering]
+    IPV6_Frag_TCPIP       = 44,    // Fragment Header for IPv6    [Steve_Deering]
+    IDRP_TCPIP            = 45,    // Inter-Domain Routing Protocol    [Sue_Hares]
+    RSVP_TCPIP            = 46,    // Reservation Protocol    [RFC2205][RFC3209][Bob_Braden]
+    GRE_TCPIP             = 47,    // Generic Routing Encapsulation    [RFC1701][Tony_Li]
+    DSR_TCPIP             = 48,    // Dynamic Source Routing Protocol    [RFC4728]
+    BNA_TCPIP             = 49,    // BNA    [Gary Salamon]
+    ESP_TCPIP             = 50,    // Encap Security Payload    [RFC4303]
+    AH_TCPIP              = 51,    // Authentication Header    [RFC4302]
+    I_NLSP_TCPIP          = 52,    // Integrated Net Layer Security TUBA    [K_Robert_Glenn]
+    SWIPE_TCPIP           = 53,    // IP with Encryption    [John_Ioannidis]
+    NARP_TCPIP            = 54,    // NBMA Address Resolution Protocol    [RFC1735]
+    MOBILE_TCPIP          = 55,    // IP Mobility    [Charlie_Perkins]
+    TLSP_TCPIP            = 56,    // Transport Layer Security Protocol using Kryptonet key management    [Christer_Oberg]
+    SKIP_TCPIP            = 57,    // SKIP    [Tom_Markson]
+    IPV6_ICMP_TCPIP       = 58,    // ICMP for IPv6    [RFC2460]
+    IPV6_NoNxt_TCPIP      = 59,    // No Next Header for IPv6    [RFC2460]
+    IPV6_Opts_TCPIP       = 60,    // Destination Options for IPv6    [RFC2460]
+    CFTP_TCPIP            = 62,    // CFTP    [Forsdick, H., "CFTP", Network Message, Bolt Beranek and Newman, January 1982.][Harry_Forsdick]
+    SAT_EXPAK_TCPIP       = 64,    // SATNET and Backroom EXPAK    [Steven_Blumenthal]
+    KRYPTOLAN_TCPIP       = 65,    // Kryptolan    [Paul Liu]
+    RVD_TCPIP             = 66,    // MIT Remote Virtual Disk Protocol    [Michael_Greenwald]
+    IPPC_TCPIP            = 67,    // Internet Pluribus Packet Core    [Steven_Blumenthal]
+    SAT_MON_TCPIP         = 69,    // SATNET Monitoring    [Steven_Blumenthal]
+    VISA_TCPIP            = 70,    // VISA Protocol    [Gene_Tsudik]
+    IPCV_TCPIP            = 71,    // Internet Packet Core Utility    [Steven_Blumenthal]
+    CPNX_TCPIP            = 72,    // Computer Protocol Network Executive    [David Mittnacht]
+    CPHB_TCPIP            = 73,    // Computer Protocol Heart Beat    [David Mittnacht]
+    WSN_TCPIP             = 74,    // Wang Span Network    [Victor Dafoulas]
+    PVP_TCPIP             = 75,    // Packet Video Protocol    [Steve_Casner]
+    BR_SAT_MON_TCPIP      = 76,    // Backroom SATNET Monitoring    [Steven_Blumenthal]
+    SUN_ND_TCPIP          = 77,    // SUN ND PROTOCOL-Temporary    [William_Melohn]
+    WB_MON_TCPIP          = 78,    // WIDEBAND Monitoring    [Steven_Blumenthal]
+    WB_EXPAK_TCPIP        = 79,    // WIDEBAND EXPAK    [Steven_Blumenthal]
+    ISO_IP_TCPIP          = 80,    // ISO Internet Protocol    [Marshall_T_Rose]
+    VMTP_TCPIP            = 81,    // VMTP    [Dave_Cheriton]
+    SECURE_VMTP_TCPIP     = 82,    // SECURE-VMTP    [Dave_Cheriton]
+    VINES_TCPIP           = 83,    // VINES    [Brian Horn]
+    TTP_TCPIP             = 84,    // TTP    [Jim_Stevens]
+    IPTM_TCPIP            = 84,    // Protocol Internet Protocol Traffic Manager    [Jim_Stevens]
+    NSFNET_IGP_TCPIP      = 85,    // NSFNET-IGP    [Hans_Werner_Braun]
+    DGP_TCPIP             = 86,    // Dissimilar Gateway Protocol    [M/A-COM Government Systems, "Dissimilar Gateway Protocol Specification, Draft Version", Contract no. CS901145, November 16, 1987.][Mike_Little]
+    TCF_TCPIP             = 87,    // TCF    [Guillermo_A_Loyola]
+    EIGRP_TCPIP           = 88,    // EIGRP    [Cisco Systems, "Gateway Server Reference Manual", Manual Revision B, January 10, 1988.][Guenther_Schreiner]
+    OSPFIGP_TCPIP         = 89,    // OSPFIGP    [RFC1583][RFC2328][RFC5340][John_Moy]
+    Sprite_RPC_TCPIP      = 90,    // Sprite RPC Protocol    [Welch, B., "The Sprite Remote Procedure Call System", Technical Report, UCB/Computer Science Dept., 86/302, University of California at Berkeley, June 1986.][Bruce Willins]
+    LARP_TCPIP            = 91,    // Locus Address Resolution Protocol    [Brian Horn]
+    MTP_TCPIP             = 92,    // Multicast Transport Protocol    [Susie_Armstrong]
+    AX25_TCPIP            = 93,    // AX.25 Frames    [Brian_Kantor]
+    IPIP_TCPIP            = 94,    // IP-within-IP Encapsulation Protocol    [John_Ioannidis]
+    MICP_TCPIP            = 95,    // Mobile Internetworking Control Pro.    [John_Ioannidis]
+    SCC_SP_TCPIP          = 96,    // Semaphore Communications Sec. Pro.    [Howard_Hart]
+    ETHERIP_TCPIP         = 97,    // Ethernet-within-IP Encapsulation    [RFC3378]
+    ENCAP_TCPIP           = 98,    // Encapsulation Header    [RFC1241][Robert_Woodburn]
+    GMTP_TCPIP            = 100,    // GMTP    [[RXB5]]
+    IFMP_TCPIP            = 101,    // Ipsilon Flow Management Protocol    [Bob_Hinden][November 1995, 1997.]
+    PNNI_TCPIP            = 102,    // PNNI over IP    [Ross_Callon]
+    PIM_TCPIP             = 103,    // Protocol Independent Multicast    [RFC4601][Dino_Farinacci]
+    ARIS_TCPIP            = 104,    // ARIS    [Nancy_Feldman]
+    SCPS_TCPIP            = 105,    // SCPS    [Robert_Durst]
+    QNX_TCPIP             = 106,    // QNX    [Michael_Hunter]
+    A_N_TCPIP             = 107,    // Active Networks    [Bob_Braden]
+    IPComp_TCPIP          = 108,    // IP Payload Compression Protocol    [RFC2393]
+    SNP_TCPIP             = 109,    // Sitara Networks Protocol    [Manickam_R_Sridhar]
+    Compaq_Peer_TCPIP     = 110,    // Compaq Peer Protocol    [Victor_Volpe]
+    IPX_in_IP_TCPIP       = 111,    // IPX in IP    [CJ_Lee]
+    VRRP_TCPIP            = 112,    // Virtual Router Redundancy Protocol    [RFC5798]
+    PGM_TCPIP             = 113,    // PGM Reliable Transport Protocol    [Tony_Speakman]
+    L2TP_TCPIP            = 115,    // Layer Two Tunneling Protocol    [RFC3931][Bernard_Aboba]
+    DDX_TCPIP             = 116,    // D-II Data Exchange (DDX)    [John_Worley]
+    IATP_TCPIP            = 117,    // Interactive Agent Transfer Protocol    [John_Murphy]
+    STP_TCPIP             = 118,    // Schedule Transfer Protocol    [Jean_Michel_Pittet]
+    SRP_TCPIP             = 119,    // SpectraLink Radio Protocol    [Mark_Hamilton]
+    UTI_TCPIP             = 120,    // UTI    [Peter_Lothberg]
+    SMP_TCPIP             = 121,    // Simple Message Protocol    [Leif_Ekblad]
+    SM_TCPIP              = 122,    // SM    [Jon_Crowcroft]
+    PTP_TCPIP             = 123,    // Performance Transparency Protocol    [Michael_Welzl]
+    ISIS_TCPIP            = 124,    //  over IPv4        [Tony_Przygienda]
+    FIRE_TCPIP            = 125,    // [Criag_Partridge]
+    CRTP_TCPIP            = 126,    // Combat Radio Transport Protocol    [Robert_Sautter]
+    CRUDP_TCPIP           = 127,    // Combat Radio User Datagram    [Robert_Sautter]
+    SSCOPMCE_TCPIP        = 128,    // [Kurt_Waber]
+    IPLT_TCPIP            = 129,    // [[Hollbach]]
+    SPS_TCPIP             = 130,    // Secure Packet Shield    [Bill_McIntosh]
+    PIPE_TCPIP            = 131,    // Private IP Encapsulation within IP    [Bernhard_Petri]
+    SCTP_TCPIP            = 132,    // Stream Control Transmission Protocol    [Randall_R_Stewart]
+    FC_TCPIP              = 133     // Fibre Channel    [Murali_Rajagopal][RFC6172]
 } ipProtocolNumbers;
 
 typedef struct
@@ -374,27 +435,53 @@ typedef struct
 
 typedef struct
 {
+   union {
+        uint8_t  s6_u8[16];
+        uint16_t s6_u16[8];
+        uint32_t s6_u32[4];
+    } s6;
+#define s6_addr                 s6.s6_u8
+#define s6_addr16               s6.s6_u16
+#define s6_addr32               s6.s6_u32
+}in6Addr_t;
+
+typedef struct
+{
     uint16_t port;
     inAddr_t addr;
 }sockaddr_in_t;
 
+typedef struct {
+//    sa_family_t         in6_family;           /* AF_INET6 */
+    uint16_t            in6_port;            /* transport layer port # */
+    uint32_t            in6_flowinfo;        /* IPv6 flow information */
+    in6Addr_t           in6_addr;            /* IPv6 address */
+    uint32_t            in6_scope_id;        /* set of interfaces for a scope */
+}sockaddr_in6_t;
+
+extern const char *network_errors[];
+
 typedef enum
 {
     ERROR =0,
-            SUCCESS,
-            LINK_NOT_FOUND,
-            BUFFER_BUSY,
-            TX_LOGIC_NOT_IDLE,
-            MAC_NOT_FOUND,
-            IP_WRONG_VERSION,
-            IPV4_CHECKSUM_FAILS,
-            DEST_IP_NOT_MATCHED,
-            ICMP_CHECKSUM_FAILS,
-            UDP_CHECKSUM_FAILS,
-            TCP_CHECKSUM_FAILS,
-            DMA_TIMEOUT,
-            PORT_NOT_AVAILABLE,
-            ARP_IP_NOT_MATCHED
+    SUCCESS,
+    LINK_NOT_FOUND,
+    BUFFER_BUSY,
+    TX_LOGIC_NOT_IDLE,
+    MAC_NOT_FOUND,
+    IP_WRONG_VERSION,
+    IPV4_CHECKSUM_FAILS,
+    DEST_IP_NOT_MATCHED,
+    ICMP_CHECKSUM_FAILS,
+    UDP_CHECKSUM_FAILS,
+    TCP_CHECKSUM_FAILS,
+    DMA_TIMEOUT,
+    PORT_NOT_AVAILABLE,
+    ARP_IP_NOT_MATCHED,
+    EAPoL_PACKET_FAILURE,
+    INCORRECT_IPV4_HLEN,
+    IPV4_NO_OPTIONS,
+    TX_QUEUED
 }error_msg;
 
 typedef struct
@@ -407,8 +494,72 @@ typedef int8_t socklistsize_t;
 
 typedef void (*ip_receive_function_ptr)(int); // parameter is the bytes available for this payload
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    }
-#endif
+
+/*
+ * Address Testing Macros
+ */
+
+
+/*
+ * netint/in.h
+ */
+
+/* Test the type of an address:
+ * return true if the address is of the specified type, or false otherwise
+ */
+#define in6IsAddrUnspecified(a) \
+    (((const uint32_t *) (a))[0] == 0                   \
+     && ((const uint32_t *) (a))[1] == 0				    \
+     && ((const uint32_t *) (a))[2] == 0				    \
+     && ((const uint32_t *) (a))[3] == 0)
+
+#define in6IsAddrLoopback(a) \
+    (((const uint32_t *) (a))[0] == 0                   \
+     && ((const uint32_t *) (a))[1] == 0				    \
+     && ((const uint32_t *) (a))[2] == 0				    \
+     && ((const uint32_t *) (a))[3] == htonl (1))
+
+#define in6IsAddrMulticast(a) (((const uint8_t *) (a))[0] == 0xff)
+
+#define in6IsAddrLinkLocal(a) \
+    ((((const uint32_t *) (a))[0] & htonl (0xffc00000))	\
+     == htonl (0xfe800000))
+
+#define in6IsAddrV4Mapped(a) \
+    ((((const uint32_t *) (a))[0] == 0)             \
+     && (((const uint32_t *) (a))[1] == 0)			    \
+     && (((const uint32_t *) (a))[2] == htonl (0xffff)))
+
+#define in6AreAddrEqual(a,b) \
+    ((((const uint32_t *) (a))[0] == ((const uint32_t *) (b))[0])   \
+     && (((const uint32_t *) (a))[1] == ((const uint32_t *) (b))[1])    \
+     && (((const uint32_t *) (a))[2] == ((const uint32_t *) (b))[2])    \
+     && (((const uint32_t *) (a))[3] == ((const uint32_t *) (b))[3]))
+
+/* Test the scope of a multicast address:
+ * return true if the address is a multicast address of the specified scope
+ * or false if the address is either not a multicast address
+ * or not of the specified scope
+ */
+#define in6IsAddrMcNodeLocal(a) \
+    (in6IsAddrMulticast(a)                           \
+     && ((((const uint8_t *) (a))[1] & 0xf) == 0x1))
+
+#define in6IsAddrMcLinkLocal(a) \
+    (in6IsAddrMulticast(a)                           \
+     && ((((const uint8_t *) (a))[1] & 0xf) == 0x2))
+
+#define in6IsAddrMcSiteLocal(a) \
+    (in6IsAddrMulticast(a)                           \
+     && ((((const uint8_t *) (a))[1] & 0xf) == 0x5))
+
+#define in6IsAddrMcOrgLocal(a) \
+    (in6IsAddrMulticast(a)                           \
+     && ((((const uint8_t *) (a))[1] & 0xf) == 0x8))
+
+#define in6IsAddrMcGlobal(a) \
+    (in6IsAddrMulticast(a)                           \
+     && ((((const uint8_t *) (a))[1] & 0xf) == 0xe))
+
 
 #endif  /*TCPIP_TCPIP_TYPES_H*/

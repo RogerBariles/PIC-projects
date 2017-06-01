@@ -1,17 +1,17 @@
 /**
-  SYSLog implementation
+  UDP protocol v4 implementation
 	
   Company:
     Microchip Technology Inc.
 
   File Name:
-    syslog.c
+    udpv4_port_handler_table.c
 
   Summary:
-    Syslog implementation over UART
+     This is the implementation of UDP version 4 protocol
 
   Description:
-    This file provides the Syslog implementation over UART.
+    This source file provides the implementation of the API for the UDP v4 protocol.
 
  */
 
@@ -37,18 +37,41 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 
 */
 
-#include <time.h>
 #include <stdio.h>
+#include "tcpip_types.h"
+#include "dhcp_client.h"
+#include "udpv4_port_handler_table.h"
+#include "tcpip_config.h"
 
-void SYSLOG_Init(void)
+#define SOURCEPORT_DEV_REG  65521
+
+const udp_handler_t UDP_CallBackTable[] = \
+{    
+    {68, DHCP_Handler},     // a catcher to manage the DHCP process
+
+};
+
+// ***************** Leave the stuff below this line alone *********************
+
+udp_table_iterator_t udp_table_getIterator(void)
 {
-    unsigned long t = time(0);
-
-    printf("\r\n\r\nStarting Syslog at %lu\r\n",t);
+    return (udp_table_iterator_t) UDP_CallBackTable;
 }
 
-void SYSLOG_Write(const char *message)
+udp_table_iterator_t udp_table_nextEntry(udp_table_iterator_t i)
 {
-    unsigned int t = (unsigned int) time(0); // only printing the LSW of the time
-    printf("%u : %s\r\n",t,message);
+    udp_table_iterator_t j;
+    
+    j = udp_table_getIterator() +sizeof(UDP_CallBackTable);
+    
+    i ++;
+    if(i < j )
+    {
+        return (udp_table_iterator_t) i;
+    }
+    else
+        return (udp_table_iterator_t) NULL;
 }
+
+
+

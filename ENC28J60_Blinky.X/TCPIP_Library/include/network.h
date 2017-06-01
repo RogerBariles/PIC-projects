@@ -40,10 +40,6 @@ MICROCHIP PROVIDES THIS SOFTWARE CONDITIONALLY UPON YOUR ACCEPTANCE OF THESE TER
 #ifndef NETWORK_H
 #define	NETWORK_H
 
-#ifdef __cplusplus  // Provide C++ Compatibility
-    extern "C" {
-#endif
-
 #include <stdint.h>
 #include "tcpip_types.h"
 
@@ -63,10 +59,7 @@ void Network_Init(void);
 void Network_Read(void);
 void Network_Manage(void);
 void Network_WaitForLink(void);
-
-#ifdef __cplusplus  // Provide C++ Compatibility
-    }
-#endif
+void timersInit();
 
 #endif	/* NETWORK_H */
 

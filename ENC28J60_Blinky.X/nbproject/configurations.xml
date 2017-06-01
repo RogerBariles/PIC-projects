@@ -16,22 +16,24 @@
         <logicalFolder name="ethernet_drivers"
                        displayName="ethernet_drivers"
                        projectFiles="true">
-          <itemPath>TCPIP_Library/ethernet_drivers/enc28j60.h</itemPath>
           <itemPath>TCPIP_Library/ethernet_drivers/ethernet_driver.h</itemPath>
+          <itemPath>TCPIP_Library/ethernet_drivers/ENC28J60.h</itemPath>
         </logicalFolder>
         <logicalFolder name="include" displayName="include" projectFiles="true">
+          <itemPath>TCPIP_Library/include/ip_database.h</itemPath>
+          <itemPath>TCPIP_Library/include/udpv4.h</itemPath>
           <itemPath>TCPIP_Library/include/arpv4.h</itemPath>
-          <itemPath>TCPIP_Library/include/dhcp_client.h</itemPath>
-          <itemPath>TCPIP_Library/include/icmp.h</itemPath>
-          <itemPath>TCPIP_Library/include/ipv4.h</itemPath>
           <itemPath>TCPIP_Library/include/mac_address.h</itemPath>
-          <itemPath>TCPIP_Library/include/network.h</itemPath>
+          <itemPath>TCPIP_Library/include/tcpv4.h</itemPath>
+          <itemPath>TCPIP_Library/include/dhcp_client.h</itemPath>
+          <itemPath>TCPIP_Library/include/tcpip_types.h</itemPath>
+          <itemPath>TCPIP_Library/include/ipv4.h</itemPath>
+          <itemPath>TCPIP_Library/include/icmp.h</itemPath>
           <itemPath>TCPIP_Library/include/syslog.h</itemPath>
           <itemPath>TCPIP_Library/include/tcpip_config.h</itemPath>
-          <itemPath>TCPIP_Library/include/tcpip_types.h</itemPath>
-          <itemPath>TCPIP_Library/include/tcpv4.h</itemPath>
-          <itemPath>TCPIP_Library/include/udpv4.h</itemPath>
+          <itemPath>TCPIP_Library/include/lfsr.h</itemPath>
           <itemPath>TCPIP_Library/include/udpv4_port_handler_table.h</itemPath>
+          <itemPath>TCPIP_Library/include/network.h</itemPath>
         </logicalFolder>
       </logicalFolder>
     </logicalFolder>
@@ -55,18 +57,21 @@
         <logicalFolder name="ethernet_drivers"
                        displayName="ethernet_drivers"
                        projectFiles="true">
-          <itemPath>TCPIP_Library/ethernet_drivers/enc28J60.c</itemPath>
+          <itemPath>TCPIP_Library/ethernet_drivers/ENC28J60.c</itemPath>
         </logicalFolder>
         <logicalFolder name="source" displayName="source" projectFiles="true">
-          <itemPath>TCPIP_Library/source/arpv4.c</itemPath>
-          <itemPath>TCPIP_Library/source/dhcp_client.c</itemPath>
           <itemPath>TCPIP_Library/source/icmp.c</itemPath>
-          <itemPath>TCPIP_Library/source/ipv4.c</itemPath>
           <itemPath>TCPIP_Library/source/mac_address.c</itemPath>
-          <itemPath>TCPIP_Library/source/network.c</itemPath>
-          <itemPath>TCPIP_Library/source/syslog.c</itemPath>
+          <itemPath>TCPIP_Library/source/lfsr.c</itemPath>
           <itemPath>TCPIP_Library/source/tcpv4.c</itemPath>
+          <itemPath>TCPIP_Library/source/udpv4_port_handler_table.c</itemPath>
+          <itemPath>TCPIP_Library/source/ipv4.c</itemPath>
+          <itemPath>TCPIP_Library/source/dhcp_client.c</itemPath>
+          <itemPath>TCPIP_Library/source/syslog.c</itemPath>
           <itemPath>TCPIP_Library/source/udpv4.c</itemPath>
+          <itemPath>TCPIP_Library/source/arpv4.c</itemPath>
+          <itemPath>TCPIP_Library/source/network.c</itemPath>
+          <itemPath>TCPIP_Library/source/ip_database.c</itemPath>
         </logicalFolder>
       </logicalFolder>
       <itemPath>main.c</itemPath>
@@ -92,7 +97,7 @@
         <platformTool>PICkit3PlatformTool</platformTool>
         <languageToolchain>XC8</languageToolchain>
         <languageToolchainVersion>1.42</languageToolchainVersion>
-        <platform>3</platform>
+        <platform>2</platform>
       </toolsSet>
       <compileType>
         <linkerTool>
