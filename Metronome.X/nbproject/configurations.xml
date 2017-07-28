@@ -9,8 +9,8 @@
         <itemPath>BSP/hardware.h</itemPath>
         <itemPath>BSP/uart.h</itemPath>
       </logicalFolder>
-      <itemPath>BSP/metronome.h</itemPath>
-      <itemPath>BSP/buttons.h</itemPath>
+      <itemPath>buttons.h</itemPath>
+      <itemPath>metronome.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -24,8 +24,8 @@
         <itemPath>BSP/uart.c</itemPath>
       </logicalFolder>
       <itemPath>main.c</itemPath>
-      <itemPath>BSP/metronome.c</itemPath>
-      <itemPath>BSP/buttons.c</itemPath>
+      <itemPath>buttons.c</itemPath>
+      <itemPath>metronome.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
