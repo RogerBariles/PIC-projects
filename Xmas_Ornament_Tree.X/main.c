@@ -46,6 +46,20 @@ volatile uint32_t g_ms = 0;
 
 const uint8_t patern1[] = {1,3,5,7,9,2,4,6,8};
 
+struct s_sfpwm{
+    uint8_t state[9];
+    uint8_t duty[9];   
+    uint8_t counter[9];    
+};
+
+struct s_sfpwm leds;
+
+#define SFPWM_DISABLED    0u
+#define SFPWM_ENABLED     1u
+
+#define SFPWM_MAX_COUNT   20u //specify length of one cycle
+
+
 /*redirected timer0 interrupt, configured for 1ms interrupts
  */
 void tmr0_interrupt(){
@@ -196,6 +210,68 @@ void pattern_one(){
     }    
 }
 
+/* set/update duty cycle (0-100) for a specified pin*/
+void sfpwm_set_duty(uint8_t idx, uint8_t duty){
+    di();
+    duty = duty*SFPWM_MAX_COUNT/100u;
+    if(duty <= SFPWM_MAX_COUNT)
+        leds.duty[idx] = duty;
+    else
+        leds.duty[idx] = SFPWM_MAX_COUNT;
+    ei();
+}
+
+void sfpwm(uint8_t idx){
+    //if led state is on
+    if(leds.state[idx] == SFPWM_ENABLED){
+        //if counter maxed
+        if(leds.counter[idx]++ >= SFPWM_MAX_COUNT){
+            //reset counter
+            leds.counter[idx] = 0;
+        }
+
+        if(leds.counter[idx] >= leds.duty[idx]){
+            //LED off
+            set_led(0);
+        }else{
+            //LED on
+            set_led(idx+1u);
+        }
+    }
+}
+
+void fade_test(uint8_t idx){
+    static uint8_t state;
+    static uint8_t dir;
+    static uint32_t led_timer;
+    //static uint8_t duty;//, idx = 0;
+    
+    //leds[0].state = SFPWM_ENABLED;
+    if(leds.state[idx] == SFPWM_ENABLED){
+        sfpwm(idx);
+
+        if(state == 0){
+            state = 1;
+            if(dir == 0){
+                leds.duty[idx]++;// = duty; 
+            }
+            else
+                leds.duty[idx]--;
+            //sfpwm_set_duty(idx,duty);
+            led_timer = millis();
+            if(leds.duty[idx] > 19u || leds.duty[idx]== 1u){
+                if (dir == 0)
+                    dir = 1;
+                else
+                    dir = 0;
+                //leds.duty[idx] = 0;
+
+            }
+        }
+        else if(millis() - led_timer >= 50)
+           state = 0;
+    }
+}
 
 /*
                          Main application
@@ -210,7 +286,7 @@ void main(void)
     // Use the following macros to:
 
     // Enable the Global Interrupts
-    //INTERRUPT_GlobalInterruptEnable();
+    INTERRUPT_GlobalInterruptEnable();
 
     // Enable the Peripheral Interrupts
     //INTERRUPT_PeripheralInterruptEnable();
@@ -220,11 +296,15 @@ void main(void)
 
     // Disable the Peripheral Interrupts
     //INTERRUPT_PeripheralInterruptDisable();
-
+    
+    uint8_t cnt = 0;
+    leds.duty[0] = 2;
+    leds.state[0] = SFPWM_ENABLED;
+    
     while (1)
     {
-        pattern_one();
-        // Add your application code
+        //pattern_one();
+        fade_test(0); //test fade effect on one led
     }
 }
 /**
