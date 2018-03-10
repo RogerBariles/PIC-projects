@@ -42,14 +42,19 @@
 
 #include "mcc_generated_files/mcc.h"
 
+#define SFPWM_MAX_IDX 9
+
 volatile uint32_t g_ms = 0;
 
 const uint8_t patern1[] = {1,3,5,7,9,2,4,6,8};
 
 struct s_sfpwm{
-    uint8_t state[9];
-    uint8_t duty[9];   
-    uint8_t counter[9];    
+    uint8_t state[SFPWM_MAX_IDX];
+    uint8_t duty[SFPWM_MAX_IDX];   
+    uint8_t counter[SFPWM_MAX_IDX];
+    uint8_t fade_dir[SFPWM_MAX_IDX]; 
+    uint8_t fade_rate[SFPWM_MAX_IDX]; 
+    uint8_t fade_rate_counter[SFPWM_MAX_IDX];
 };
 
 struct s_sfpwm leds;
@@ -57,14 +62,39 @@ struct s_sfpwm leds;
 #define SFPWM_DISABLED    0u
 #define SFPWM_ENABLED     1u
 
-#define SFPWM_MAX_COUNT   20u //specify length of one cycle
+#define SFPWM_FADE_OFF      0u
+#define SFPWM_FADE_UP       1u
+#define SFPWM_FADE_DOWN     2u
+#define SFPWM_FADE_CYCLE    4u
 
+#define SFPWM_MAX_COUNT   10u //specify length of one cycle
+
+//function prototypes
+void sfpwm_set_duty(uint8_t idx, uint8_t duty);
+void sfpwm(uint8_t idx);
+//void sfpwm();
+
+void pattern_one();
 
 /*redirected timer0 interrupt, configured for 1ms interrupts
  */
 void tmr0_interrupt(){
     g_ms++;
+    //sfpwm();
+    
 }
+
+void tmr2_interrupt(){
+    static uint8_t idx;
+    //sfpwm();
+    //pattern_one();
+    
+    sfpwm(idx);
+    if(idx++ >= SFPWM_MAX_IDX-1)
+        idx = 0;
+    
+}
+
 
 /* block interrupts and read the volatile global variable
  * of current millisecond
@@ -222,31 +252,52 @@ void sfpwm_set_duty(uint8_t idx, uint8_t duty){
 }
 
 void sfpwm(uint8_t idx){
+//void sfpwm(){    
     //if led state is on
-    if(leds.state[idx] == SFPWM_ENABLED){
-        //if counter maxed
-        if(leds.counter[idx]++ >= SFPWM_MAX_COUNT){
-            //reset counter
-            leds.counter[idx] = 0;
-        }
+    //for (uint8_t idx = 0; idx < SFPWM_MAX_IDX; idx++){
+        if(leds.state[idx] == SFPWM_ENABLED){
 
-        if(leds.counter[idx] >= leds.duty[idx]){
-            //LED off
-            set_led(0);
-        }else{
-            //LED on
-            set_led(idx+1u);
+            //if counter maxed
+            if(leds.counter[idx]++ >= SFPWM_MAX_COUNT){
+                //reset counter
+                leds.counter[idx] = 0;
+                //if fader enabled
+
+                if(leds.fade_dir[idx] > SFPWM_FADE_OFF){
+                    if(leds.fade_rate_counter[idx]++ >= leds.fade_rate[idx]-1){
+                        leds.fade_rate_counter[idx] = 0;
+                        if((leds.fade_dir[idx] & SFPWM_FADE_UP) == SFPWM_FADE_UP){
+
+                            if(leds.duty[idx]++ >= SFPWM_MAX_COUNT-1){
+                                leds.fade_dir[idx] = SFPWM_FADE_DOWN;
+                            }
+                        }
+                        else if((leds.fade_dir[idx] & SFPWM_FADE_DOWN) == SFPWM_FADE_DOWN){
+                            if(leds.duty[idx]-- <= 1){
+                                leds.fade_dir[idx] = SFPWM_FADE_UP;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if(leds.counter[idx] >= leds.duty[idx]){
+                //LED off
+                set_led(0);
+            }else{
+                //LED on
+                set_led(idx+1u);
+            }
         }
-    }
+    //}
 }
-
+/*
 void fade_test(uint8_t idx){
     static uint8_t state;
     static uint8_t dir;
     static uint32_t led_timer;
     //static uint8_t duty;//, idx = 0;
     
-    //leds[0].state = SFPWM_ENABLED;
     if(leds.state[idx] == SFPWM_ENABLED){
         sfpwm(idx);
 
@@ -257,21 +308,19 @@ void fade_test(uint8_t idx){
             }
             else
                 leds.duty[idx]--;
-            //sfpwm_set_duty(idx,duty);
             led_timer = millis();
             if(leds.duty[idx] > 19u || leds.duty[idx]== 1u){
                 if (dir == 0)
                     dir = 1;
                 else
                     dir = 0;
-                //leds.duty[idx] = 0;
 
             }
         }
         else if(millis() - led_timer >= 50)
            state = 0;
     }
-}
+}*/
 
 /*
                          Main application
@@ -281,6 +330,7 @@ void main(void)
     // initialize the device
     SYSTEM_Initialize();
     TMR0_SetInterruptHandler(tmr0_interrupt);
+    TMR2_SetInterruptHandler(tmr2_interrupt);
 
     // When using interrupts, you need to set the Global and Peripheral Interrupt Enable bits
     // Use the following macros to:
@@ -289,7 +339,7 @@ void main(void)
     INTERRUPT_GlobalInterruptEnable();
 
     // Enable the Peripheral Interrupts
-    //INTERRUPT_PeripheralInterruptEnable();
+    INTERRUPT_PeripheralInterruptEnable();
 
     // Disable the Global Interrupts
     //INTERRUPT_GlobalInterruptDisable();
@@ -297,14 +347,27 @@ void main(void)
     // Disable the Peripheral Interrupts
     //INTERRUPT_PeripheralInterruptDisable();
     
-    uint8_t cnt = 0;
-    leds.duty[0] = 2;
+    //uint8_t cnt = 0;
     leds.state[0] = SFPWM_ENABLED;
+    leds.fade_dir[0] = SFPWM_FADE_UP;
+    leds.fade_rate[0] = 15;
     
-    while (1)
-    {
-        //pattern_one();
-        fade_test(0); //test fade effect on one led
+    leds.state[1] = SFPWM_ENABLED;
+    sfpwm_set_duty(1,100);
+    
+    leds.state[5] = SFPWM_ENABLED;
+    leds.fade_dir[5] = SFPWM_FADE_UP;
+    leds.fade_rate[5] = 5;
+    
+    leds.state[2] = SFPWM_ENABLED;
+    leds.fade_dir[2] = SFPWM_FADE_UP;
+    leds.fade_rate[2] = 10;
+    
+    leds.state[8] = SFPWM_ENABLED;
+    sfpwm_set_duty(8,100);
+    
+    while (1){
+        
     }
 }
 /**
