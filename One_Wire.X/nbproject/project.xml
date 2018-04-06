@@ -3,7 +3,7 @@
     <type>com.microchip.mplab.nbide.embedded.makeproject</type>
     <configuration>
         <data xmlns="http://www.netbeans.org/ns/make-project/1">
-            <name>pic_one_wire</name>
+            <name>one_wire</name>
             <creation-uuid>0f0b1974-24ca-4136-8322-565293436c9d</creation-uuid>
             <make-project-type>0</make-project-type>
             <c-extensions>c</c-extensions>

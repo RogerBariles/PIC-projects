@@ -5,8 +5,10 @@
                    displayName="Header Files"
                    projectFiles="true">
       <logicalFolder name="f1" displayName="example" projectFiles="true">
-        <itemPath>example/config.h</itemPath>
       </logicalFolder>
+      <itemPath>ow_search.h</itemPath>
+      <itemPath>ow_base.h</itemPath>
+      <itemPath>common_defs.h</itemPath>
       <itemPath>one_wire.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
@@ -18,7 +20,10 @@
                    projectFiles="true">
       <logicalFolder name="f1" displayName="example" projectFiles="true">
         <itemPath>example/main.c</itemPath>
+        <itemPath>example/device_config.c</itemPath>
       </logicalFolder>
+      <itemPath>ow_base.c</itemPath>
+      <itemPath>ow_search.c</itemPath>
       <itemPath>one_wire.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
@@ -35,13 +40,13 @@
     <conf name="default" type="2">
       <toolsSet>
         <developmentServer>localhost</developmentServer>
-        <targetDevice>PIC18F4320</targetDevice>
+        <targetDevice>PIC18F4550</targetDevice>
         <targetHeader></targetHeader>
         <targetPluginBoard></targetPluginBoard>
         <platformTool>PICkit3PlatformTool</platformTool>
         <languageToolchain>XC8</languageToolchain>
-        <languageToolchainVersion>1.38</languageToolchainVersion>
-        <platform>3</platform>
+        <languageToolchainVersion>1.45</languageToolchainVersion>
+        <platform>2</platform>
       </toolsSet>
       <compileType>
         <linkerTool>
@@ -55,6 +60,8 @@
           <parseOnProdLoad>false</parseOnProdLoad>
           <alternateLoadableFile></alternateLoadableFile>
         </loading>
+        <subordinates>
+        </subordinates>
       </compileType>
       <makeCustomizationType>
         <makeCustomizationPreStepEnabled>false</makeCustomizationPreStepEnabled>
@@ -68,8 +75,11 @@
       <HI-TECH-COMP>
         <property key="asmlist" value="true"/>
         <property key="define-macros" value=""/>
+        <property key="disable-optimizations" value="false"/>
         <property key="extra-include-directories" value=""/>
+        <property key="favor-optimization-for" value="-speed,+space"/>
         <property key="identifier-length" value="255"/>
+        <property key="local-generation" value="false"/>
         <property key="operation-mode" value="free"/>
         <property key="opt-xc8-compiler-strict_ansi" value="false"/>
         <property key="optimization-assembler" value="true"/>
@@ -137,6 +147,7 @@
         <property key="ToolFirmwareFilePath"
                   value="Press to browse for a specific firmware version"/>
         <property key="ToolFirmwareOption.UseLatestFirmware" value="true"/>
+        <property key="firmware.download.all" value="false"/>
         <property key="hwtoolclock.frcindebug" value="false"/>
         <property key="memories.aux" value="false"/>
         <property key="memories.bootflash" value="true"/>
@@ -147,28 +158,22 @@
         <property key="memories.flashdata" value="true"/>
         <property key="memories.id" value="true"/>
         <property key="memories.instruction.ram" value="true"/>
-        <property key="memories.instruction.ram.end"
-                  value="${memories.instruction.ram.end.value}"/>
-        <property key="memories.instruction.ram.start"
-                  value="${memories.instruction.ram.start.value}"/>
+        <property key="memories.instruction.ram.ranges"
+                  value="${memories.instruction.ram.ranges}"/>
         <property key="memories.programmemory" value="true"/>
-        <property key="memories.programmemory.end" value="0x1fff"/>
-        <property key="memories.programmemory.partition2" value="true"/>
-        <property key="memories.programmemory.partition2.end"
-                  value="${memories.programmemory.partition2.end.value}"/>
-        <property key="memories.programmemory.partition2.start"
-                  value="${memories.programmemory.partition2.start.value}"/>
-        <property key="memories.programmemory.start" value="0x0"/>
+        <property key="memories.programmemory.ranges" value="0-1fff"/>
         <property key="poweroptions.powerenable" value="false"/>
         <property key="programmertogo.imagename" value=""/>
         <property key="programoptions.donoteraseauxmem" value="false"/>
         <property key="programoptions.eraseb4program" value="true"/>
         <property key="programoptions.pgmspeed" value="2"/>
         <property key="programoptions.preservedataflash" value="false"/>
+        <property key="programoptions.preservedataflash.ranges"
+                  value="${programoptions.preservedataflash.ranges}"/>
         <property key="programoptions.preserveeeprom" value="false"/>
+        <property key="programoptions.preserveeeprom.ranges" value="f00000-f000ff"/>
+        <property key="programoptions.preserveprogram.ranges" value=""/>
         <property key="programoptions.preserveprogramrange" value="false"/>
-        <property key="programoptions.preserveprogramrange.end" value="0x1fff"/>
-        <property key="programoptions.preserveprogramrange.start" value="0x0"/>
         <property key="programoptions.preserveuserid" value="false"/>
         <property key="programoptions.programcalmem" value="false"/>
         <property key="programoptions.programuserotp" value="false"/>
@@ -185,6 +190,28 @@
         <property key="stack-size-main" value="auto"/>
         <property key="stack-type" value="compiled"/>
       </XC8-config-global>
+      <item path="common_defs.h" ex="true" overriding="false">
+      </item>
+      <item path="one_wire.c" ex="true" overriding="false">
+      </item>
+      <item path="one_wire.h" ex="true" overriding="false">
+      </item>
+      <item path="ow_search.c" ex="true" overriding="false">
+        <HI-TECH-COMP>
+        </HI-TECH-COMP>
+        <HI-TECH-LINK>
+        </HI-TECH-LINK>
+        <XC8-config-global>
+        </XC8-config-global>
+      </item>
+      <item path="ow_search.h" ex="true" overriding="false">
+        <HI-TECH-COMP>
+        </HI-TECH-COMP>
+        <HI-TECH-LINK>
+        </HI-TECH-LINK>
+        <XC8-config-global>
+        </XC8-config-global>
+      </item>
     </conf>
   </confs>
 </configurationDescriptor>
