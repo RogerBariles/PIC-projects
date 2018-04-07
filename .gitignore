@@ -33,3 +33,5 @@ funclist
 *.mcw
 *.tmp
 
+/old-projects/RTC_and_Temp_DS1307_DS1820.X/nbproject/private/
+/old-projects/alarm_clock/breadBoard/digitalClock.2/digClock.X/dist/default/
