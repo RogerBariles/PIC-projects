@@ -5,7 +5,8 @@
  *	like the Hitachi HD44780. It uses it in 4 or 8 bit mode
  *	
  */
-#include <pic18.h
+
+#include	<htc.h>
 #include	"lcd.h"
  
 
@@ -115,18 +116,13 @@ lcd_init(unsigned char mode)
 		init_value = 0x3F;
 	}
 
-#if (_PICDEM2_REVISION_ == 6)
-	LCD_CTRL &= 0x0F;
-	// All data and control lines on same TRIS register
-	LCD_DATA_TRIS	 &= (OUTPUT_DATA & OUTPUT_CTRL);
-	LCD_VCC = 1;	// turn on the power to the LCD
-#else
+
 	LCD_RS = 0;
 	LCD_EN = 0;
 	LCD_RW = 0;
 
 	// Set control lines digital
-	//ADCON1 = 7;
+	ADCON1 = 7;
 
 	// Set control lines to output
 	LCD_RS_TRIS	 = OUTPUT_PIN;
@@ -134,7 +130,7 @@ lcd_init(unsigned char mode)
 	LCD_RW_TRIS	 = OUTPUT_PIN;
 	// Set data lines to output
 	LCD_DATA_TRIS	 &= OUTPUT_DATA;
-#endif
+
 	__delay_ms(15);
 	LCD_EN = 1;
 	LCD_TX(init_value);

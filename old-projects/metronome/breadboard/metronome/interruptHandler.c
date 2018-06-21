@@ -2,13 +2,10 @@
 
 void interrupt isr()
 {
-
 	if(TMR0IF)
-	{
-
-		TMR0IF=0;
-		tickCnt++;
-
+	{	
+		TMR0L+=TMR0L_VAL;	
+		tickCnt++;		
 		ticksPerMsCnt++;
 		if(ticksPerMsCnt==TPMS)
 		{
@@ -28,7 +25,7 @@ void interrupt isr()
 			tickCnt=0;
 		}
 		else if(tickCnt>ticksPerBeep)
-			tickCnt=0;	
-
+			tickCnt=0;
+		TMR0IF=0;
 	}
 }

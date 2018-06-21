@@ -56,8 +56,8 @@ volatile uint8_t g_s;   //global variable second
 #define EW_RED      0x20
 
 //define states
-#define S0      0   //north and south directions go (green light)
-#define S1		1   //NS wait (yellow light)
+#define S0      0   // north and south directions go (green light)
+#define S1		1   // north and south wait (yellow light)
 #define S2  	2   // east and west go (green light)
 #define S3		3   // EW - wait (yellow light)
 
@@ -77,6 +77,8 @@ const struct state traffic_controller[4] = {
     {NS_YELLOW|NS_RED,  1,      {S0, S0, S0, S0}}   // S3
 };  
 
+//g_ms counts to 1000 milliseconds
+//g_s count up seconds up to 255
 void TMR0_Interrupt(void){
     g_ms++;
     if(g_ms >= 1000){
@@ -85,16 +87,16 @@ void TMR0_Interrupt(void){
     }    
 }
 
+//delay loop
+//delay in seconds, 0-255 seconds
 void delay_s(uint8_t delay){
+    //reset global delay counter
     g_s = 0;
-    
-    while(g_s <= delay);
+    //loop
+    while(g_s < delay);
 }
 
 
-/*
-                         Main application
- */
 void main(void)
 {
     // initialize the device
@@ -117,12 +119,13 @@ void main(void)
     
     TMR0_SetInterruptHandler(TMR0_Interrupt);
 
+    //init state
     uint8_t state=0;
     uint8_t sensors;
     
     while (1)
     {
-        //set output
+        //set output. LED's connected to port C
         LATC =  traffic_controller[state].output;
         //wait state
         delay_s(traffic_controller[state].time_s);

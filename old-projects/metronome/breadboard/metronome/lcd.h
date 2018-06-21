@@ -23,18 +23,10 @@
 
 #ifndef _XTAL_FREQ
  // Unless specified elsewhere, 4MHz system frequency is assumed
-	#define _XTAL_FREQ 20000000
+ #define _XTAL_FREQ 4000000
 #endif
 
-/*
-#ifndef _PICDEM2_REVISION_
- #define _PICDEM2_REVISION_ 5
-#elif (_PICDEM2_REVISION_ == 6)
- #warning This code has not been tested on a revision 6 demo board.
-#elif (_PICDEM_REVISION_ != 5)
- #error Unknown board revision. Code may be incompatible.
-#endif
-*/
+
 
 #ifdef CHECKBUSY
 	#define	LCD_WAIT lcd_check_busy()
@@ -53,33 +45,19 @@
 #define INPUT_DATA      0xFF
 
 // LCD control/data definitions
-#define LCD_DATA	PORTA
-#define LCD_DATA_PORT	PORTA 
-#define LCD_DATA_TRIS	TRISA
-/*
-#if (_PICDEM2_REVISION_ == 6)
- #define LCD_CTRL	PORTD
- #define LCD_RS		RD4
- #define LCD_RW		RD5 
- #define LCD_EN		RD6
- #define LCD_VCC	RD7
- #define LCD_RS_TRIS	TRISD4
- #define LCD_RW_TRIS	TRISD5 
- #define LCD_EN_TRIS	TRISD6
- #define LCD_VCC_TRIS	TRISD7
- #define OUTPUT_CTRL     0x0F	
-#else	// Definitions for red board (revision 5)
-*/
- #define LCD_RS	RE0
- #define LCD_RW	RE1
- #define LCD_EN	RE2	 
- #define LCD_RS_TRIS	TRISE0
- #define LCD_RW_TRIS	TRISE1
- #define LCD_EN_TRIS	TRISE2 
- //#define LCD_RS_ANSEL 	ANS3
- //#define LCD_EN_ANSEL   ANS1
- //#define LCD_RW_ANSEL	ANS2
-//#endif
+#define LCD_DATA	PORTD
+#define LCD_DATA_PORT	PORTD 
+#define LCD_DATA_TRIS	TRISD
+
+ #define LCD_RS	RA3
+ #define LCD_EN	RA1
+ #define LCD_RW	RA2 
+ #define LCD_RS_TRIS	TRISA3
+ #define LCD_EN_TRIS	TRISA1
+ #define LCD_RW_TRIS	TRISA2 
+ #define LCD_RS_ANSEL 	ANS3
+ #define LCD_EN_ANSEL   ANS1
+ #define LCD_RW_ANSEL	ANS2
 
 #define LCD_TX(a)	LCD_DATA&=OUTPUT_DATA;LCD_DATA|=((a)&~OUTPUT_DATA)
 
