@@ -43,15 +43,15 @@
 
 #include "mcc_generated_files/mcc.h"
 
-volatile uint16_t g_ms; //global variable milli second
+volatile uint16_t g_ms; //global variable millisecond
 volatile uint8_t g_s;   //global variable second
 
 //define output Red, Green, Yellow
-#define NS_GREEN    0x01    //north south lights
+#define NS_GREEN    0x01    //north to south lights
 #define NS_YELLOW   0x02
 #define NS_RED      0x04
 
-#define EW_GREEN    0x08    //east west lights
+#define EW_GREEN    0x08    //east to west lights
 #define EW_YELLOW   0x10
 #define EW_RED      0x20
 
@@ -73,8 +73,8 @@ const struct state traffic_controller[4] = {
     //                           00  01  10  11
     {NS_GREEN|EW_RED,   5,      {S0, S0, S1, S1}},  // S0
     {NS_YELLOW|EW_RED,  1,      {S2, S2, S2, S2}},  // S1
-    {NS_GREEN|NS_RED,   5,      {S3, S3, S2, S3}},  // S2
-    {NS_YELLOW|NS_RED,  1,      {S0, S0, S0, S0}}   // S3
+    {EW_GREEN|NS_RED,   5,      {S3, S3, S2, S3}},  // S2
+    {EW_YELLOW|NS_RED,  1,      {S0, S0, S0, S0}}   // S3
 };  
 
 //g_ms counts to 1000 milliseconds
@@ -126,11 +126,11 @@ void main(void)
     while (1)
     {
         //set output. LED's connected to port C
-        LATC =  traffic_controller[state].output;
+        LATC = traffic_controller[state].output;
         //wait state
         delay_s(traffic_controller[state].time_s);
         //read sensors (buttons)
-        sensors = (PORTA&(0x03u)); 
+        sensors = IO_RB5_PORT|(IO_RB6_PORT<<1);
         //set next state
         state = traffic_controller[state].next[sensors];
     }
