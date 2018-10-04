@@ -1,12 +1,12 @@
-<config configVersion="1.1" device="PIC16F1829" coreVersion="4.45">
+<config configVersion="1.1" device="PIC16F1829" coreVersion="4.55">
    <usedClasses class="java.util.HashMap">
-      <entry>
-         <string>TMR0</string>
-         <string>class com.microchip.mcc.mcu8.modules.tmr0.TMR0</string>
-      </entry>
       <entry>
          <string>System Module</string>
          <string>class com.microchip.mcc.mcu8.systemManager.SystemManager</string>
+      </entry>
+      <entry>
+         <string>TMR0</string>
+         <string>class com.microchip.mcc.mcu8.modules.tmr0.TMR0</string>
       </entry>
       <entry>
          <string>INTERNAL OSCILLATOR</string>
@@ -2514,12 +2514,12 @@
          <value>0</value>
       </entry>
       <entry>
-         <key class="com.microchip.mcc.core.tokenManager.OptionKey" moduleName="System Module" registerAlias="CONFIG1" settingAlias="CP" alias="OFF"/>
-         <value>128</value>
-      </entry>
-      <entry>
          <key class="com.microchip.mcc.core.tokenManager.CustomKey" moduleName="Interrupt Module" name="IVT_NAME"/>
          <value>IVT1</value>
+      </entry>
+      <entry>
+         <key class="com.microchip.mcc.core.tokenManager.OptionKey" moduleName="System Module" registerAlias="CONFIG1" settingAlias="CP" alias="OFF"/>
+         <value>128</value>
       </entry>
       <entry>
          <key class="com.microchip.mcc.core.tokenManager.CustomKey" moduleName="Pin Module" name="trisUserSetRA4"/>
@@ -2634,6 +2634,10 @@
       <entry>
          <file>mcc_generated_files/tmr0.c</file>
          <hash>d2cf642f79ffd4856aff306b65045b820d0f76767bcc07be56428f42d5172f62</hash>
+      </entry>
+      <entry>
+         <file>main.c</file>
+         <hash>a92322eecc9c6d0928b73e46628a5d2d77f06ae3e60ffd15cc267f5e474c135b</hash>
       </entry>
       <entry>
          <file>mcc_generated_files/mcc.h</file>

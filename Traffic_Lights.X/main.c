@@ -73,8 +73,8 @@ const struct state traffic_controller[4] = {
     //                           00  01  10  11
     {NS_GREEN|EW_RED,   5,      {S0, S0, S1, S1}},  // S0
     {NS_YELLOW|EW_RED,  1,      {S2, S2, S2, S2}},  // S1
-    {EW_GREEN|NS_RED,   5,      {S3, S3, S2, S3}},  // S2
-    {EW_YELLOW|NS_RED,  1,      {S0, S0, S0, S0}}   // S3
+    {NS_RED|EW_GREEN,   5,      {S3, S3, S2, S3}},  // S2
+    {NS_RED|EW_YELLOW,  1,      {S0, S0, S0, S0}}   // S3
 };  
 
 //g_ms counts to 1000 milliseconds
@@ -122,7 +122,7 @@ void main(void)
     //init state
     uint8_t state=0;
     uint8_t sensors;
-    
+        
     while (1)
     {
         //set output. LED's connected to port C
