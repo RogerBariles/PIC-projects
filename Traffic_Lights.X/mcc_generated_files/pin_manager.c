@@ -15,7 +15,7 @@
     Generation Information :
         Product Revision  :  PIC10 / PIC12 / PIC16 / PIC18 MCUs - 1.65.2
         Device            :  PIC16F1829
-        Driver Version    :  2.01
+        Driver Version    :  2.11
     The generated drivers are tested against the following:
         Compiler          :  XC8 1.45
         MPLAB             :  MPLAB X 4.15
@@ -85,9 +85,7 @@ void PIN_MANAGER_Initialize(void)
     WPUC = 0x00;
     OPTION_REGbits.nWPUEN = 1;
 
-    /**
-    ODx registers
-    */
+
 
     /**
     APFCONx registers

@@ -1,4 +1,4 @@
-<config configVersion="1.1" device="PIC16F1829" coreVersion="4.55">
+<config configVersion="1.1" device="PIC16F1829" coreVersion="4.56">
    <usedClasses class="java.util.HashMap">
       <entry>
          <string>System Module</string>
@@ -30,7 +30,7 @@
       </entry>
    </usedClasses>
    <usedLibraries class="java.util.ArrayList">
-      <ILibraryFile class="com.microchip.mcc.core.library.BaseLibraryFile" libraryClass="com.microchip.mcc.mcu8.Mcu8PeripheralLibrary" version="1.65.2"/>
+      <ILibraryFile class="com.microchip.mcc.core.library.BaseLibraryFile" libraryClass="com.microchip.mcc.mcu8.Mcu8PeripheralLibrary" version="1.75"/>
    </usedLibraries>
    <tokenMap class="java.util.HashMap">
       <entry>
@@ -2514,12 +2514,12 @@
          <value>0</value>
       </entry>
       <entry>
-         <key class="com.microchip.mcc.core.tokenManager.CustomKey" moduleName="Interrupt Module" name="IVT_NAME"/>
-         <value>IVT1</value>
-      </entry>
-      <entry>
          <key class="com.microchip.mcc.core.tokenManager.OptionKey" moduleName="System Module" registerAlias="CONFIG1" settingAlias="CP" alias="OFF"/>
          <value>128</value>
+      </entry>
+      <entry>
+         <key class="com.microchip.mcc.core.tokenManager.CustomKey" moduleName="Interrupt Module" name="IVT_NAME"/>
+         <value>IVT1</value>
       </entry>
       <entry>
          <key class="com.microchip.mcc.core.tokenManager.CustomKey" moduleName="Pin Module" name="trisUserSetRA4"/>
@@ -2625,15 +2625,19 @@
    <generatedFileHashHistoryMap class="java.util.HashMap">
       <entry>
          <file>mcc_generated_files/interrupt_manager.h</file>
-         <hash>3bce1a847e433dcaddc257af4df7b3f167c58aa1190ce5328b3ee8fef202067f</hash>
+         <hash>affef38655f963048886b75c73c6270172c0af5222ae057178253746a0c6b0d6</hash>
+      </entry>
+      <entry>
+         <file>mcc_generated_files/device_config.h</file>
+         <hash>f131a00b0d9d717fb573b453345dec133697d0e2baee6cbc2ae843f848aa9e56</hash>
       </entry>
       <entry>
          <file>mcc_generated_files/pin_manager.h</file>
-         <hash>21b1b98b0470413192ceccd9c0c8effe6fe732531c231b0ce03f7d14ac09ce79</hash>
+         <hash>d7eb12bf6034e14365605a81f12b0580757b30c97237590efb68edeed747d464</hash>
       </entry>
       <entry>
          <file>mcc_generated_files/tmr0.c</file>
-         <hash>d2cf642f79ffd4856aff306b65045b820d0f76767bcc07be56428f42d5172f62</hash>
+         <hash>4da1699d18d16adcc76ff90315eba89818e88f7220968144dde383d6bec3a5ad</hash>
       </entry>
       <entry>
          <file>main.c</file>
@@ -2641,15 +2645,15 @@
       </entry>
       <entry>
          <file>mcc_generated_files/mcc.h</file>
-         <hash>0e173fb98df3b55a8608effb40cbf41680f93c8e35c50dc3ec8eca0f63aeb476</hash>
+         <hash>0e2a3c8a532a985d39d67e2cb03f83858d879ada03ca2f79bcff709b34c24b4e</hash>
       </entry>
       <entry>
          <file>mcc_generated_files/device_config.c</file>
-         <hash>80398b4fa79ebaf56fbbe0aada0179d62f10d3f32d77b7dd9af574cb17f1a807</hash>
+         <hash>f643a9dfa2fc7cb0e9a6222c46c10aeff6fbbdf9c6435f36737c415b1c0e4772</hash>
       </entry>
       <entry>
          <file>mcc_generated_files/interrupt_manager.c</file>
-         <hash>0759b3f31b6984546b5667b06fd53bb980029f66199e8c28aec4a4ae5135cf02</hash>
+         <hash>896b5ed65c66dbcc924b8b63ad177514eb4dcfcd66100ac230cf1c63b233de97</hash>
       </entry>
       <entry>
          <file>mcc_generated_files/mcc.c</file>
@@ -2657,7 +2661,7 @@
       </entry>
       <entry>
          <file>mcc_generated_files/pin_manager.c</file>
-         <hash>121376157716737cee8a153996a23eba46acaa07971e2ec5012d4350f3631173</hash>
+         <hash>a90c2caae45919f1bade2f2c22066bcbc087f97f34272129e6ee78b9dbe02208</hash>
       </entry>
       <entry>
          <file>mcc_generated_files/tmr0.h</file>

@@ -17,7 +17,7 @@
     Generation Information :
         Product Revision  :  PIC10 / PIC12 / PIC16 / PIC18 MCUs - 1.65.2
         Device            :  PIC16F1829
-        Driver Version    :  1.03
+        Driver Version    :  2.03
     The generated drivers are tested against the following:
         Compiler          :  XC8 1.45 or later
         MPLAB 	          :  MPLAB X 4.15
@@ -96,17 +96,6 @@
     INTERRUPT_PeripheralInterruptDisable();
  */
 #define INTERRUPT_PeripheralInterruptDisable() (INTCONbits.PEIE = 0)
-/**
- * @Param
-    none
- * @Returns
-    none
- * @Description
-    Main interrupt service routine. Calls module interrupt handlers.
- * @Example
-    INTERRUPT_InterruptManager();
- */
-void interrupt INTERRUPT_InterruptManager(void);
 
 
 #endif  // INTERRUPT_MANAGER_H

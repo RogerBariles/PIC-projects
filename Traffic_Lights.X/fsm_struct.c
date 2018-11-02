@@ -43,9 +43,60 @@
 
 #include "mcc_generated_files/mcc.h"
 
-/*
-                         Main application
- */
+volatile uint16_t g_ms; //global variable millisecond
+volatile uint8_t g_s;   //global variable second
+
+//define output Red, Green, Yellow
+#define NS_GREEN    0x01    //north to south lights
+#define NS_YELLOW   0x02
+#define NS_RED      0x04
+
+#define EW_GREEN    0x08    //east to west lights
+#define EW_YELLOW   0x10
+#define EW_RED      0x20
+
+//define states
+#define S0      0   // north and south directions go (green light)
+#define S1		1   // north and south wait (yellow light)
+#define S2  	2   // east and west go (green light)
+#define S3		3   // EW - wait (yellow light)
+
+//struct for FSM
+struct state{
+    uint8_t output;     // what to output for the current state
+    uint8_t delay;     // how long to stay in current state
+    uint8_t next[4];    // state table
+};
+
+const struct state traffic_controller[4] = {
+    //output,           delay,  next state
+    //                           00  01  10  11
+    {NS_GREEN|EW_RED,   5,      {S0, S0, S1, S1}},  // S0
+    {NS_YELLOW|EW_RED,  1,      {S2, S2, S2, S2}},  // S1
+    {NS_RED|EW_GREEN,   5,      {S3, S3, S2, S3}},  // S2
+    {NS_RED|EW_YELLOW,  1,      {S0, S0, S0, S0}}   // S3
+};  
+
+//g_ms counts to 1000 milliseconds
+//g_s count up seconds up to 255
+void TMR0_Interrupt(void){
+    g_ms++;
+    if(g_ms >= 1000){
+        g_ms = 0;
+        g_s++;
+    }    
+}
+
+//delay loop
+//delay in seconds, 0-255 seconds
+void delay_s(uint8_t delay){
+    //reset global delay counter
+    g_s = 0;
+    //loop
+    while(g_s < delay);
+}
+
+
 void main(void)
 {
     // initialize the device
@@ -55,7 +106,7 @@ void main(void)
     // Use the following macros to:
 
     // Enable the Global Interrupts
-    //INTERRUPT_GlobalInterruptEnable();
+    INTERRUPT_GlobalInterruptEnable();
 
     // Enable the Peripheral Interrupts
     //INTERRUPT_PeripheralInterruptEnable();
@@ -65,10 +116,23 @@ void main(void)
 
     // Disable the Peripheral Interrupts
     //INTERRUPT_PeripheralInterruptDisable();
+    
+    TMR0_SetInterruptHandler(TMR0_Interrupt);
 
+    //init state
+    uint8_t state=S0;
+    uint8_t input;
+        
     while (1)
     {
-        // Add your application code
+        //set output. LED's connected to port C
+        LATC = traffic_controller[state].output;
+        //wait state
+        delay_s(traffic_controller[state].delay);
+        //read buttons
+        input = (uint8_t)(IO_RB5_PORT|(IO_RB6_PORT<<1u));
+        //set next state
+        state = traffic_controller[state].next[input];
     }
 }
 /**
